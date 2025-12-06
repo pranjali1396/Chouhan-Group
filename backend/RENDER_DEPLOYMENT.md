@@ -1,26 +1,37 @@
 # Deploy Backend to Render
 
-## Step-by-Step Deployment Guide
+## 🎯 Deployment Strategy: Staging + Production
 
-### Prerequisites
+This guide sets up **TWO separate environments**:
+- **Staging**: For testing before frontend deployment
+- **Production**: For live deployment with frontend
+
+---
+
+## 📋 Prerequisites
 - Your code is pushed to GitHub (✅ Already done!)
 - GitHub repository: https://github.com/pranjali1396/Chouhan-Group.git
+- Supabase credentials ready
+
+---
+
+## 🚀 Part 1: Deploy STAGING Environment (For Testing)
 
 ### Step 1: Sign Up / Login to Render
 1. Go to https://render.com
 2. Click "Get Started for Free"
 3. Sign up using your GitHub account (recommended)
 
-### Step 2: Create a New Web Service
+### Step 2: Create Staging Web Service
 1. Click "New +" button in the dashboard
 2. Select "Web Service"
 3. Click "Connect" next to your GitHub repository: `Chouhan-Group`
 4. If you don't see it, click "Configure account" and grant access to the repository
 
-### Step 3: Configure the Service
+### Step 3: Configure Staging Service
 Fill in the following details:
 
-**Name:** `chouhan-crm-backend` (or any name you prefer)
+**Name:** `chouhan-crm-backend-staging`
 
 **Region:** Choose the closest to you (e.g., Singapore, Frankfurt, Oregon)
 
@@ -43,11 +54,11 @@ npm start
 
 **Instance Type:** `Free`
 
-### Step 4: Add Environment Variables
+### Step 4: Add Staging Environment Variables
 Click "Advanced" and add these environment variables:
 
 1. **SUPABASE_URL**
-   - Value: Your Supabase project URL
+   - Value: Your Supabase project URL (can use same as production for testing)
    - Example: `https://xxxxxxxxxxxxx.supabase.co`
 
 2. **SUPABASE_SERVICE_ROLE_KEY**
@@ -55,9 +66,9 @@ Click "Advanced" and add these environment variables:
    - ⚠️ Keep this secret!
 
 3. **NODE_ENV**
-   - Value: `production`
+   - Value: `staging`
 
-### Step 5: Deploy
+### Step 5: Deploy Staging
 1. Click "Create Web Service"
 2. Render will automatically:
    - Pull your code from GitHub
@@ -65,29 +76,114 @@ Click "Advanced" and add these environment variables:
    - Start your server
 3. Wait 2-3 minutes for deployment to complete
 
-### Step 6: Get Your Backend URL
-Once deployed, you'll see your backend URL:
+### Step 6: Get Your Staging Backend URL
+Once deployed, you'll see your staging backend URL:
 ```
-https://chouhan-crm-backend.onrender.com
+https://chouhan-crm-backend-staging.onrender.com
 ```
 
-### Step 7: Test Your Backend
+### Step 7: Test Staging Backend
 Test these endpoints:
 
 **Health Check:**
 ```
-https://chouhan-crm-backend.onrender.com/health
+https://chouhan-crm-backend-staging.onrender.com/health
 ```
 
 **Get Leads:**
 ```
-https://chouhan-crm-backend.onrender.com/api/v1/leads
+https://chouhan-crm-backend-staging.onrender.com/api/v1/leads
 ```
 
-**Webhook Endpoint (for website forms):**
+**Webhook Endpoint:**
 ```
-https://chouhan-crm-backend.onrender.com/api/v1/webhooks/lead
+https://chouhan-crm-backend-staging.onrender.com/api/v1/webhooks/lead
 ```
+
+---
+
+## 🎯 Part 2: Deploy PRODUCTION Environment (For Live Deployment)
+
+**⚠️ Wait until your frontend is ready before deploying production!**
+
+### Step 1: Create Production Web Service
+1. Click "New +" button again in the dashboard
+2. Select "Web Service"
+3. Select the same GitHub repository: `Chouhan-Group`
+
+### Step 2: Configure Production Service
+Fill in the following details:
+
+**Name:** `chouhan-crm-backend`
+
+**Region:** Same as staging (or choose production region)
+
+**Branch:** `main`
+
+**Root Directory:** `backend`
+
+**Runtime:** `Node`
+
+**Build Command:** 
+```
+npm install
+```
+
+**Start Command:**
+```
+npm start
+```
+
+**Instance Type:** `Free` (or upgrade to paid for always-on)
+
+### Step 3: Add Production Environment Variables
+Click "Advanced" and add these environment variables:
+
+1. **SUPABASE_URL**
+   - Value: Your Supabase project URL (production)
+   - Example: `https://xxxxxxxxxxxxx.supabase.co`
+
+2. **SUPABASE_SERVICE_ROLE_KEY**
+   - Value: Your Supabase service role key (production)
+   - ⚠️ Keep this secret!
+
+3. **NODE_ENV**
+   - Value: `production`
+
+### Step 4: Deploy Production
+1. Click "Create Web Service"
+2. Wait for deployment to complete
+
+### Step 5: Get Your Production Backend URL
+Once deployed, you'll see your production backend URL:
+```
+https://chouhan-crm-backend.onrender.com
+```
+
+---
+
+## 🔄 Environment URLs Summary
+
+| Environment | URL | Purpose |
+|------------|-----|---------|
+| **Staging** | `https://chouhan-crm-backend-staging.onrender.com` | Testing before frontend deployment |
+| **Production** | `https://chouhan-crm-backend.onrender.com` | Live deployment with frontend |
+
+---
+
+## 📝 Workflow
+
+### Current Phase: Testing (Staging)
+1. ✅ Deploy staging backend
+2. ✅ Test all endpoints with staging URL
+3. ✅ Test webhook integration
+4. ✅ Verify everything works
+
+### Next Phase: Production
+1. ⏳ Deploy frontend to Vercel
+2. ⏳ Deploy production backend
+3. ⏳ Connect frontend to production backend
+4. ⏳ Update website webhooks to production URL
 
 ---
 
@@ -103,11 +199,13 @@ https://chouhan-crm-backend.onrender.com/api/v1/webhooks/lead
 Render will automatically redeploy whenever you push to the `main` branch on GitHub!
 
 ### Update Frontend API URL
-After deployment, update your frontend's API URL from:
+
+**For Staging (Testing):**
 ```javascript
-http://localhost:5000
+https://chouhan-crm-backend-staging.onrender.com
 ```
-to:
+
+**For Production (Live):**
 ```javascript
 https://chouhan-crm-backend.onrender.com
 ```
@@ -131,12 +229,21 @@ https://chouhan-crm-backend.onrender.com
 
 ---
 
-## Next Steps
-After deployment:
-1. ✅ Test all endpoints
-2. ✅ Update frontend API URL
-3. ✅ Update webhook URL in website forms
-4. ✅ Test lead submission from website
+## ✅ Next Steps
+
+### For Staging (Now):
+1. ✅ Deploy staging backend
+2. ✅ Test all endpoints with staging URL
+3. ✅ Test webhook integration
+4. ✅ Verify database connections
+5. ✅ Test lead submission from website forms
+
+### For Production (After Frontend Deployment):
+1. ⏳ Deploy frontend to Vercel
+2. ⏳ Deploy production backend
+3. ⏳ Update frontend to use production backend URL
+4. ⏳ Update website webhooks to production URL
+5. ⏳ Test complete production flow
 
 ---
 
