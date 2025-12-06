@@ -3,10 +3,32 @@
  */
 
 // At runtime this will be replaced by Vite; for type-checking we fall back to window.
-const API_BASE_URL =
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
-  (typeof window !== 'undefined' && (window as any).VITE_API_URL) ||
-  'http://localhost:5000/api/v1';
+// Priority: 1. Environment variable, 2. Window variable, 3. Auto-detect production, 4. Default localhost
+const getApiBaseUrl = () => {
+  // Check environment variable first (set in .env or Vercel)
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) {
+    return (import.meta as any).env.VITE_API_URL;
+  }
+  
+  // Check window variable (for runtime override)
+  if (typeof window !== 'undefined' && (window as any).VITE_API_URL) {
+    return (window as any).VITE_API_URL;
+  }
+  
+  // Auto-detect production: if not localhost, use staging backend
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // If deployed (not localhost), use Render staging backend
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return 'https://chouhan-crm-backend-staging.onrender.com/api/v1';
+    }
+  }
+  
+  // Default to localhost for local development
+  return 'http://localhost:5000/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
   private async request<T>(
