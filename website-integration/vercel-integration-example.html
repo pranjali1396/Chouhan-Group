@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Example: How to Add CRM Integration to Your Vercel Site</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .step {
+            background: #e8f5e9;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <h1>How to Integrate CRM with Your Vercel Website</h1>
+    
+    <div class="step">
+        <h2>Step 1: Add Script to Your Website</h2>
+        <p>Copy the CRM integration script to your Vercel project's <code>public</code> folder.</p>
+    </div>
+
+    <div class="step">
+        <h2>Step 2: Include Script in Your HTML</h2>
+        <p>Add this before the closing <code>&lt;/body&gt;</code> tag in your contact page:</p>
+        <pre>&lt;script src="/crm-webhook-integration.js"&gt;&lt;/script&gt;</pre>
+    </div>
+
+    <div class="step">
+        <h2>Step 3: Update API URL</h2>
+        <p>In <code>crm-webhook-integration.js</code>, change:</p>
+        <pre>API_URL: 'http://localhost:5000/api/v1/webhooks/lead'</pre>
+        <p>To your production backend URL:</p>
+        <pre>API_URL: 'https://your-backend-api.railway.app/api/v1/webhooks/lead'</pre>
+    </div>
+
+    <div class="step">
+        <h2>Step 4: Verify Form Field Names</h2>
+        <p>Make sure your form uses these field names (or update the script):</p>
+        <ul>
+            <li><code>name</code> or <code>Name</code> - Customer name</li>
+            <li><code>phone</code> or <code>Phone</code> - Phone number</li>
+            <li><code>email</code> or <code>Email</code> - Email address</li>
+            <li><code>broker</code> - Are you a broker? (Yes/No)</li>
+            <li><code>source</code> - How did you hear about us?</li>
+            <li><code>homeType</code> - Home type interested in?</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>Step 5: Test</h2>
+        <ol>
+            <li>Start your backend: <code>cd backend && npm run dev</code></li>
+            <li>Submit a test form on your website</li>
+            <li>Check backend console - you should see the lead data</li>
+        </ol>
+    </div>
+
+    <h2>Example Form HTML (Your Current Form Structure)</h2>
+    <pre>&lt;form id="contactForm"&gt;
+  &lt;input type="text" name="name" placeholder="Name" required /&gt;
+  &lt;input type="email" name="email" placeholder="Email" required /&gt;
+  &lt;input type="tel" name="phone" placeholder="Phone" required /&gt;
+  &lt;select name="broker"&gt;
+    &lt;option value="No"&gt;No&lt;/option&gt;
+    &lt;option value="Yes"&gt;Yes&lt;/option&gt;
+  &lt;/select&gt;
+  &lt;select name="source"&gt;
+    &lt;option value="Google Search"&gt;Google Search&lt;/option&gt;
+    &lt;option value="Social Media"&gt;Social Media&lt;/option&gt;
+    &lt;!-- etc --&gt;
+  &lt;/select&gt;
+  &lt;select name="homeType"&gt;
+    &lt;option value="Flat"&gt;Flat&lt;/option&gt;
+    &lt;option value="Bungalow"&gt;Bungalow&lt;/option&gt;
+    &lt;!-- etc --&gt;
+  &lt;/select&gt;
+  &lt;button type="submit"&gt;Submit&lt;/button&gt;
+&lt;/form&gt;
+
+&lt;!-- Add this before &lt;/body&gt; --&gt;
+&lt;script src="/crm-webhook-integration.js"&gt;&lt;/script&gt;</pre>
+
+    <h2>For Next.js (If Your Site Uses Next.js)</h2>
+    <p>Add to <code>pages/_app.js</code> or <code>app/layout.js</code>:</p>
+    <pre>import Script from 'next/script';
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    &lt;&gt;
+      &lt;Component {...pageProps} /&gt;
+      &lt;Script 
+        src="/crm-webhook-integration.js" 
+        strategy="afterInteractive" 
+      /&gt;
+    &lt;/&gt;
+  );
+}</pre>
+
+</body>
+</html>
+
+
+

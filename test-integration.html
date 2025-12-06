@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CRM Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 CRM Integration Test</h1>
+        <p>Test if your backend is receiving leads correctly.</p>
+
+        <div id="status" class="status info">
+            Ready to test. Click "Test Backend" first.
+        </div>
+
+        <div>
+            <button onclick="testBackend()">1. Test Backend Connection</button>
+            <button onclick="testWebhook()">2. Test Webhook (Send Lead)</button>
+            <button onclick="viewLeads()">3. View Received Leads</button>
+        </div>
+
+        <div id="results" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api/v1/webhooks/lead';
+        const HEALTH_URL = 'http://localhost:5000/health';
+        const LEADS_URL = 'http://localhost:5000/api/v1/webhooks/leads';
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        function showResults(title, data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+        }
+
+        async function testBackend() {
+            showStatus('Testing backend connection...', 'info');
+            try {
+                const response = await fetch(HEALTH_URL);
+                const data = await response.json();
+                showStatus('✅ Backend is running!', 'success');
+                showResults('Backend Response', data);
+            } catch (error) {
+                showStatus('❌ Backend not reachable. Make sure it\'s running on port 5000', 'error');
+                showResults('Error', { error: error.message });
+            }
+        }
+
+        async function testWebhook() {
+            showStatus('Sending test lead...', 'info');
+            const testLead = {
+                source: 'Test Website',
+                sourceUrl: window.location.href,
+                customerName: 'Test Customer',
+                mobile: '9876543210',
+                email: 'test@example.com',
+                city: 'Bhilai',
+                interestedProject: 'Chouhan Park View',
+                interestedUnit: 'Flat',
+                modeOfEnquiry: 'Digital',
+                remarks: 'This is a test lead from integration test page'
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testLead)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showStatus('✅ Lead sent successfully! Check backend console.', 'success');
+                    showResults('Webhook Response', data);
+                } else {
+                    showStatus('❌ Error: ' + data.error, 'error');
+                    showResults('Error Response', data);
+                }
+            } catch (error) {
+                showStatus('❌ Network error. Check if backend is running.', 'error');
+                showResults('Error', { error: error.message });
+            }
+        }
+
+        async function viewLeads() {
+            showStatus('Fetching received leads...', 'info');
+            try {
+                const response = await fetch(LEADS_URL);
+                const data = await response.json();
+                if (data.success) {
+                    showStatus(`✅ Found ${data.count} lead(s)`, 'success');
+                    showResults('Received Leads', data);
+                } else {
+                    showStatus('❌ Error fetching leads', 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, 'error');
+                showResults('Error', { error: error.message });
+            }
+        }
+
+        // Auto-test backend on load
+        window.addEventListener('load', () => {
+            setTimeout(testBackend, 500);
+        });
+    </script>
+</body>
+</html>
+
+
+
