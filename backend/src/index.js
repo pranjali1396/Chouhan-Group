@@ -22,6 +22,25 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root endpoint - API information
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Chouhan Group CRM Backend API',
+    version: '1.0.0',
+    status: 'running',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      getLeads: 'GET /api/v1/leads',
+      updateLead: 'PUT /api/v1/leads/:id',
+      webhookLead: 'POST /api/v1/webhooks/lead',
+      viewReceivedLeads: 'GET /api/v1/webhooks/leads'
+    },
+    documentation: 'See README.md for API documentation'
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
