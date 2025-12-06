@@ -417,12 +417,17 @@ const ImportCSV: React.FC<{onImport: Function, users: User[]}> = ({ onImport, us
     };
 
     return (
-        <div className="flex items-center space-x-2">
-            <label htmlFor="csv-importer" className={`px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow-sm hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors cursor-pointer ${isParsing ? 'opacity-50' : ''}`}>
-                {isParsing ? 'Importing...' : 'Import CSV'}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+            <label htmlFor="csv-importer" className={`px-3 md:px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg md:rounded-md shadow-sm hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors cursor-pointer touch-manipulation active:scale-95 ${isParsing ? 'opacity-50' : ''}`}>
+                {isParsing ? 'Importing...' : (
+                    <>
+                        <span className="hidden sm:inline">Import CSV</span>
+                        <span className="sm:hidden">Import</span>
+                    </>
+                )}
             </label>
             <input id="csv-importer" type="file" accept=".csv" onChange={handleFileChange} className="hidden" disabled={isParsing} />
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            {error && <p className="text-xs text-red-500 px-1">{error}</p>}
         </div>
     );
 };
@@ -673,9 +678,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                 </button>
                 
                 {isAdmin && (
-                    <div className="hidden md:block">
-                        <ImportCSV onImport={onImportLeads} users={users} />
-                    </div>
+                    <ImportCSV onImport={onImportLeads} users={users} />
                 )}
                 <button 
                     onClick={exportToCSV} 
