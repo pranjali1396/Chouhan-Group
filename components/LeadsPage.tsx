@@ -47,50 +47,52 @@ const PipelineCard: React.FC<{ lead: Lead, user?: User, onClick: () => void }> =
     return (
         <div 
             onClick={onClick}
-            className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-all group relative"
+            className="bg-white p-3 md:p-3 rounded-xl shadow-sm border border-gray-200 cursor-pointer hover:shadow-md active:scale-[0.98] transition-all group relative touch-manipulation"
         >
-            <div className="flex justify-between items-start mb-2">
-                <h4 className="font-bold text-slate-800 text-sm truncate flex-1 pr-2" title={lead.customerName}>{lead.customerName}</h4>
-                {lead.temperature && (
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${lead.temperature === 'Hot' ? 'bg-red-500' : lead.temperature === 'Warm' ? 'bg-orange-400' : 'bg-blue-400'}`} title={lead.temperature}></span>
-                )}
+            <div className="flex justify-between items-start mb-2.5">
+                <h4 className="font-bold text-slate-800 text-sm md:text-sm truncate flex-1 pr-2" title={lead.customerName}>{lead.customerName}</h4>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {lead.temperature && (
+                        <span className={`w-2.5 h-2.5 rounded-full ${lead.temperature === 'Hot' ? 'bg-red-500' : lead.temperature === 'Warm' ? 'bg-orange-400' : 'bg-blue-400'}`} title={lead.temperature}></span>
+                    )}
+                    {!lead.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>}
+                </div>
             </div>
             
-            <div className="space-y-1.5">
-                <p className="text-xs text-slate-500 flex items-center truncate">
-                    <MapPinIcon className="w-3 h-3 mr-1 text-slate-400" />
-                    {lead.interestedProject || 'No Project'}
+            <div className="space-y-2 mb-3">
+                <p className="text-xs md:text-xs text-slate-600 flex items-center truncate">
+                    <MapPinIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                    <span className="truncate">{lead.interestedProject || 'No Project'}</span>
                 </p>
-                <p className="text-xs text-slate-500 flex items-center">
-                    <PhoneIcon className="w-3 h-3 mr-1 text-slate-400" />
-                    {lead.mobile}
+                <p className="text-xs md:text-xs text-slate-600 flex items-center">
+                    <PhoneIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                    <span className="font-medium">{lead.mobile}</span>
                 </p>
                 {lead.budget && (
-                    <p className="text-xs text-slate-700 font-medium flex items-center">
-                        <span className="text-slate-400 mr-1">₹</span>
+                    <p className="text-xs md:text-xs text-slate-700 font-semibold flex items-center">
+                        <CurrencyRupeeIcon className="w-3.5 h-3.5 mr-1 text-slate-500" />
                         {lead.budget}
                     </p>
                 )}
             </div>
 
-            <div className="border-t border-gray-100 mt-3 pt-2 flex justify-between items-center text-[10px] text-slate-400">
-                <div className="flex items-center">
-                    <UserCircleIcon className="w-3 h-3 mr-1" />
-                    <span className="truncate max-w-[80px]">{user?.name || 'Admin'}</span>
+            <div className="border-t border-gray-100 pt-2.5 flex justify-between items-center text-[10px] md:text-[10px] text-slate-500">
+                <div className="flex items-center min-w-0">
+                    <UserCircleIcon className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+                    <span className="truncate max-w-[100px] md:max-w-[80px]">{user?.name || 'Admin'}</span>
                 </div>
-                <div className="flex items-center">
-                    <CalendarIcon className="w-3 h-3 mr-1" />
+                <div className="flex items-center flex-shrink-0">
+                    <CalendarIcon className="w-3.5 h-3.5 mr-1" />
                     <span>{new Date(lead.lastActivityDate).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</span>
                 </div>
             </div>
-            
-            {!lead.isRead && <div className="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>}
         </div>
     );
 };
 
 const PipelineBoard: React.FC<{ leads: Lead[], users: User[], onOpenModal: (l: Lead) => void }> = ({ leads, users, onOpenModal }) => {
     const userMap = new Map(users.map(u => [u.id, u]));
+    const [expandedColumns, setExpandedColumns] = React.useState<Set<string>>(new Set(['new', 'qualified']));
 
     const columns = [
         {
@@ -167,40 +169,104 @@ const PipelineBoard: React.FC<{ leads: Lead[], users: User[], onOpenModal: (l: L
         }
     ];
 
+    const toggleColumn = (colId: string) => {
+        setExpandedColumns(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(colId)) {
+                newSet.delete(colId);
+            } else {
+                newSet.add(colId);
+            }
+            return newSet;
+        });
+    };
+
     return (
-        <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-200px)] min-h-[500px] p-1">
-            {columns.map(col => {
-                const colLeads = leads.filter(l => col.statuses.includes(l.status));
-                return (
-                    <div key={col.id} className="flex-shrink-0 w-80 flex flex-col rounded-xl bg-gray-50/50 border border-gray-200 shadow-sm h-full">
-                        <div className={`p-3 rounded-t-xl bg-slate-900 border-b border-gray-100 border-t-4 ${col.color} flex justify-between items-center sticky top-0 z-10`}>
-                            <div className="flex items-center gap-2">
-                                <div className={`p-1.5 rounded-md bg-white/10`}>
-                                    {col.icon}
+        <>
+            {/* Mobile View - Vertical Stacked Accordion */}
+            <div className="md:hidden space-y-3 pb-4">
+                {columns.map(col => {
+                    const colLeads = leads.filter(l => col.statuses.includes(l.status));
+                    const isExpanded = expandedColumns.has(col.id);
+                    return (
+                        <div key={col.id} className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+                            <button
+                                onClick={() => toggleColumn(col.id)}
+                                className={`w-full p-4 ${col.bg} border-l-4 ${col.color} flex justify-between items-center transition-colors`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-white/80">
+                                        {col.icon}
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="font-bold text-slate-800 text-sm">{col.title}</h3>
+                                        <p className="text-xs text-slate-500 mt-0.5">{colLeads.length} {colLeads.length === 1 ? 'deal' : 'deals'}</p>
+                                    </div>
                                 </div>
-                                <h3 className="font-bold text-white text-sm">{col.title}</h3>
-                            </div>
-                            <span className="bg-white/10 text-white text-xs font-bold px-2 py-1 rounded-full">{colLeads.length}</span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-                            {colLeads.map(lead => (
-                                <PipelineCard 
-                                    key={lead.id} 
-                                    lead={lead} 
-                                    user={userMap.get(lead.assignedSalespersonId)}
-                                    onClick={() => onOpenModal(lead)}
-                                />
-                            ))}
-                            {colLeads.length === 0 && (
-                                <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-lg">
-                                    <p className="text-xs text-gray-400">No deals in this stage</p>
+                                {isExpanded ? (
+                                    <MinusIcon className="w-5 h-5 text-slate-600" />
+                                ) : (
+                                    <PlusIcon className="w-5 h-5 text-slate-600" />
+                                )}
+                            </button>
+                            {isExpanded && (
+                                <div className="p-3 space-y-3 max-h-[60vh] overflow-y-auto">
+                                    {colLeads.length > 0 ? (
+                                        colLeads.map(lead => (
+                                            <PipelineCard 
+                                                key={lead.id} 
+                                                lead={lead} 
+                                                user={userMap.get(lead.assignedSalespersonId)}
+                                                onClick={() => onOpenModal(lead)}
+                                            />
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                                            <p className="text-sm text-gray-400">No deals in this stage</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
-                    </div>
-                )
-            })}
-        </div>
+                    );
+                })}
+            </div>
+
+            {/* Desktop View - Horizontal Kanban */}
+            <div className="hidden md:flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-200px)] min-h-[500px] p-1">
+                {columns.map(col => {
+                    const colLeads = leads.filter(l => col.statuses.includes(l.status));
+                    return (
+                        <div key={col.id} className="flex-shrink-0 w-80 flex flex-col rounded-xl bg-gray-50/50 border border-gray-200 shadow-sm h-full">
+                            <div className={`p-3 rounded-t-xl bg-slate-900 border-b border-gray-100 border-t-4 ${col.color} flex justify-between items-center sticky top-0 z-10`}>
+                                <div className="flex items-center gap-2">
+                                    <div className={`p-1.5 rounded-md bg-white/10`}>
+                                        {col.icon}
+                                    </div>
+                                    <h3 className="font-bold text-white text-sm">{col.title}</h3>
+                                </div>
+                                <span className="bg-white/10 text-white text-xs font-bold px-2 py-1 rounded-full">{colLeads.length}</span>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                                {colLeads.map(lead => (
+                                    <PipelineCard 
+                                        key={lead.id} 
+                                        lead={lead} 
+                                        user={userMap.get(lead.assignedSalespersonId)}
+                                        onClick={() => onOpenModal(lead)}
+                                    />
+                                ))}
+                                {colLeads.length === 0 && (
+                                    <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-lg">
+                                        <p className="text-xs text-gray-400">No deals in this stage</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        </>
     )
 }
 
@@ -591,22 +657,33 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
   }
 
   return (
-    <div className="p-4 space-y-4 h-[calc(100vh-90px)] flex flex-col">
+    <div className="p-3 md:p-4 space-y-3 md:space-y-4 h-[calc(100vh-90px)] flex flex-col overflow-hidden">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
-            <h1 className="text-2xl font-bold text-base-content capitalize">{getPageTitle()}</h1>
-            <div className="flex items-center gap-2 self-end md:self-auto">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 shrink-0">
+            <h1 className="text-xl md:text-2xl font-bold text-base-content capitalize">{getPageTitle()}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
                 {/* Enabled for all users */}
                 <button 
                     onClick={() => setShowAddLead(true)} 
-                    className="flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors bg-primary text-white hover:bg-primary-focus shadow-sm"
+                    className="flex items-center px-3 md:px-4 py-2 text-sm font-medium rounded-lg md:rounded-md transition-colors bg-primary text-white hover:bg-primary-focus shadow-sm active:scale-95 touch-manipulation"
                 >
-                    <PlusIcon className="w-4 h-4 mr-2" />
-                    Add Lead
+                    <PlusIcon className="w-4 h-4 mr-1.5 md:mr-2" />
+                    <span className="hidden sm:inline">Add Lead</span>
+                    <span className="sm:hidden">Add</span>
                 </button>
                 
-                {isAdmin && <ImportCSV onImport={onImportLeads} users={users} />}
-                <button onClick={exportToCSV} className="px-4 py-2 text-sm font-medium text-gray-700 border border-border-color bg-white rounded-md hover:bg-gray-50 transition-colors">Export</button>
+                {isAdmin && (
+                    <div className="hidden md:block">
+                        <ImportCSV onImport={onImportLeads} users={users} />
+                    </div>
+                )}
+                <button 
+                    onClick={exportToCSV} 
+                    className="px-3 md:px-4 py-2 text-sm font-medium text-gray-700 border border-border-color bg-white rounded-lg md:rounded-md hover:bg-gray-50 transition-colors active:scale-95 touch-manipulation"
+                >
+                    <span className="hidden sm:inline">Export</span>
+                    <span className="sm:hidden">Export</span>
+                </button>
             </div>
         </div>
         
@@ -634,77 +711,77 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
             )}
 
             {/* Search and Filter Toolbar */}
-            <div className="p-4 border-b border-border-color flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-gray-50/50 shrink-0">
+            <div className="p-3 md:p-4 border-b border-border-color flex flex-col lg:flex-row gap-3 md:gap-4 items-start lg:items-center justify-between bg-gray-50/50 shrink-0">
                 <div className="relative w-full lg:w-96">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                        <SearchIcon className="w-4 h-4 text-gray-500" />
+                        <SearchIcon className="w-4 h-4 md:w-4 md:h-4 text-gray-500" />
                     </span>
                     <input 
                         type="text" 
-                        placeholder="Search..." 
+                        placeholder="Search leads..." 
                         value={localSearch}
                         onChange={(e) => setLocalSearch(e.target.value)}
-                        className="w-full py-2 pl-9 pr-4 text-sm bg-white border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder-gray-500 text-black"
+                        className="w-full py-2.5 md:py-2 pl-10 md:pl-9 pr-4 text-sm bg-white border border-gray-300 md:border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder-gray-500 text-black touch-manipulation"
                     />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                     <FilterChip label="Unread" isActive={filters.showUnread} onClick={() => setFilters(f => ({...f, showUnread: !f.showUnread}))} />
                     <FilterChip label="Overdue" isActive={filters.showOverdue} onClick={() => setFilters(f => ({...f, showOverdue: !f.showOverdue}))} />
-                    <FilterChip label="Visits Today" isActive={filters.showVisits} onClick={() => setFilters(f => ({...f, showVisits: !f.showVisits}))} />
+                    <FilterChip label="Visits" isActive={filters.showVisits} onClick={() => setFilters(f => ({...f, showVisits: !f.showVisits}))} />
                     
                     <div className="h-6 w-px bg-border-color mx-1 hidden sm:block"></div>
                     
                     <button 
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg border transition-colors touch-manipulation active:scale-95 ${
                             showFilters 
                                 ? 'bg-blue-50 text-primary border-primary' 
                                 : 'bg-white text-base-content border-border-color hover:bg-gray-50'
                         }`}
                     >
-                        {showFilters ? <XMarkIcon className="w-4 h-4 mr-2" /> : <FunnelIcon className="w-4 h-4 mr-2" />}
-                        Filters
+                        {showFilters ? <XMarkIcon className="w-4 h-4 mr-1.5" /> : <FunnelIcon className="w-4 h-4 mr-1.5" />}
+                        <span className="hidden xs:inline">Filters</span>
                     </button>
                 </div>
             </div>
 
             {/* Advanced Filters Panel */}
             {showFilters && (
-                <div className="p-4 bg-gray-50 border-b border-border-color animate-in fade-in slide-in-from-top-2 duration-200 shrink-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-3 md:p-4 bg-gray-50 border-b border-border-color animate-in fade-in slide-in-from-top-2 duration-200 shrink-0 max-h-[50vh] overflow-y-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                         {isAdmin && (
                             <div>
-                                <label className="block text-xs font-semibold text-muted-content mb-1">Salesperson</label>
-                                <select value={filters.salesperson} onChange={e => setFilters({...filters, salesperson: e.target.value})} className="filter-select w-full">
+                                <label className="block text-xs font-semibold text-muted-content mb-1.5">Salesperson</label>
+                                <select value={filters.salesperson} onChange={e => setFilters({...filters, salesperson: e.target.value})} className="filter-select w-full py-2.5 md:py-2 text-sm touch-manipulation">
                                     <option value="">All Salespersons</option>
                                     {manageableUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                 </select>
                             </div>
                         )}
                         <div>
-                            <label className="block text-xs font-semibold text-muted-content mb-1">Month</label>
-                            <select value={filters.month} onChange={e => setFilters({...filters, month: e.target.value})} className="filter-select w-full">
+                            <label className="block text-xs font-semibold text-muted-content mb-1.5">Month</label>
+                            <select value={filters.month} onChange={e => setFilters({...filters, month: e.target.value})} className="filter-select w-full py-2.5 md:py-2 text-sm touch-manipulation">
                                 <option value="">All Months</option>
                                 {uniqueMonths.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-muted-content mb-1">Enquiry Type</label>
-                            <select value={filters.enquiryType} onChange={e => setFilters({...filters, enquiryType: e.target.value})} className="filter-select w-full">
+                            <label className="block text-xs font-semibold text-muted-content mb-1.5">Enquiry Type</label>
+                            <select value={filters.enquiryType} onChange={e => setFilters({...filters, enquiryType: e.target.value})} className="filter-select w-full py-2.5 md:py-2 text-sm touch-manipulation">
                                 <option value="">All Types</option>
                                 {Object.values(ModeOfEnquiry).map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-muted-content mb-1">Source</label>
-                            <select value={filters.source} onChange={e => setFilters({...filters, source: e.target.value})} className="filter-select w-full">
+                            <label className="block text-xs font-semibold text-muted-content mb-1.5">Source</label>
+                            <select value={filters.source} onChange={e => setFilters({...filters, source: e.target.value})} className="filter-select w-full py-2.5 md:py-2 text-sm touch-manipulation">
                                 <option value="">All Sources</option>
                                 {uniqueSources.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
-                         <div className="flex items-end">
-                            <button onClick={resetFilters} className="text-sm text-danger hover:underline py-2">Clear all filters</button>
+                         <div className="flex items-end sm:col-span-2 lg:col-span-1">
+                            <button onClick={resetFilters} className="text-sm text-danger hover:underline py-2 px-2 touch-manipulation active:scale-95">Clear all filters</button>
                          </div>
                     </div>
                 </div>
@@ -736,11 +813,11 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
 
             {/* Main View Area */}
             {viewMode === 'opportunities' ? (
-                <div className="flex-1 overflow-hidden bg-slate-100/50 p-4">
+                <div className="flex-1 overflow-y-auto bg-slate-100/50 p-2 md:p-4">
                     <PipelineBoard leads={filteredLeads} users={users} onOpenModal={handleOpenModal} />
                 </div>
             ) : (
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 overflow-y-auto">
                     <LeadsTable 
                         leads={filteredLeads} 
                         users={users} 
@@ -750,8 +827,8 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                         onSelectAll={handleSelectAll}
                         allVisibleLeadsSelected={allVisibleLeadsSelected}
                     />
-                    <div className="p-3 border-t border-border-color bg-gray-50 text-xs text-center text-muted-content">
-                        Showing {filteredLeads.length} items based on current filters.
+                    <div className="p-3 md:p-3 border-t border-border-color bg-gray-50 text-xs text-center text-muted-content sticky bottom-0">
+                        Showing {filteredLeads.length} {filteredLeads.length === 1 ? 'item' : 'items'} based on current filters.
                     </div>
                 </div>
             )}

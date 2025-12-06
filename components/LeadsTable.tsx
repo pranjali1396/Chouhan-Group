@@ -2,6 +2,7 @@
 import React, { memo } from 'react';
 import type { Lead, User } from '../types';
 import { LeadStatus } from '../types';
+import { PhoneIcon, MapPinIcon, UserCircleIcon } from './Icons';
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -62,34 +63,54 @@ interface LeadRowProps {
 }
 
 const MobileLeadCard: React.FC<LeadRowProps> = memo(({ lead, salespersonName, isSelected, onSelect, onOpenModal }) => (
-    <div className={`p-4 rounded-2xl border transition-all shadow-sm ${isSelected ? 'bg-blue-50 border-primary/30 ring-1 ring-primary/30' : 'bg-white border-slate-100'}`}>
+    <div className={`p-4 rounded-2xl border-2 transition-all shadow-sm touch-manipulation ${isSelected ? 'bg-blue-50 border-primary/40 ring-2 ring-primary/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
         <div className="flex justify-between items-start mb-3">
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center">
-                    {!lead.isRead && <span className="h-2 w-2 bg-primary rounded-full mr-2 flex-shrink-0 animate-pulse" title="Unread"></span>}
+            <div className="flex-1 min-w-0 pr-3">
+                <div className="flex items-center gap-2 mb-1">
+                    {!lead.isRead && <span className="h-2.5 w-2.5 bg-primary rounded-full flex-shrink-0 animate-pulse" title="Unread"></span>}
                     <p className="font-bold text-slate-800 truncate text-base" title={lead.customerName}>{lead.customerName}</p>
                 </div>
-                <p className="text-sm font-medium text-slate-500 mt-0.5">{lead.mobile}</p>
+                <div className="flex items-center gap-2">
+                    <PhoneIcon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                    <p className="text-sm font-semibold text-slate-600">{lead.mobile}</p>
+                </div>
             </div>
             <input 
                 type="checkbox"
-                className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary ml-3 mt-1"
+                className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary cursor-pointer touch-manipulation flex-shrink-0 mt-1"
                 checked={isSelected}
                 onChange={() => onSelect(lead.id)}
+                onClick={(e) => e.stopPropagation()}
             />
         </div>
-        <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-50">
+        
+        <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-slate-100">
             <StatusBadge type="status" value={lead.status} />
-            <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">{salespersonName}</span>
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg">
+                <UserCircleIcon className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-xs font-semibold text-slate-600 truncate max-w-[100px]">{salespersonName}</span>
+            </div>
         </div>
-        <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
-             <div className="flex gap-2 flex-wrap">
-                 {lead.interestedProject && <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">{lead.interestedProject}</span>}
-                 {lead.source && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{lead.source}</span>}
-                 <StatusBadge type="temp" value={lead.temperature} />
-             </div>
+        
+        <div className="mb-3 space-y-2">
+            {lead.interestedProject && (
+                <div className="flex items-center gap-2">
+                    <MapPinIcon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                    <span className="text-xs text-slate-600 font-medium truncate">{lead.interestedProject}</span>
+                </div>
+            )}
+            <div className="flex items-center gap-2 flex-wrap">
+                {lead.source && (
+                    <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-semibold">{lead.source}</span>
+                )}
+                {lead.temperature && <StatusBadge type="temp" value={lead.temperature} />}
+            </div>
         </div>
-        <button onClick={() => onOpenModal(lead)} className="w-full py-2.5 text-sm font-bold text-primary bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors">
+        
+        <button 
+            onClick={() => onOpenModal(lead)} 
+            className="w-full py-3 text-sm font-bold text-primary bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-xl transition-colors touch-manipulation active:scale-[0.98]"
+        >
             View Details
         </button>
     </div>
