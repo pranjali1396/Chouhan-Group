@@ -40,31 +40,48 @@ const LoadingSpinner: React.FC = () => (
     </div>
 );
 
-const NotificationToast: React.FC<{ message: string; onClose: () => void }> = ({ message, onClose }) => (
-    <div className="fixed top-4 right-4 z-50 max-w-sm w-full bg-white border-l-4 border-primary shadow-2xl rounded-lg pointer-events-auto animate-in slide-in-from-top-2 duration-300">
-        <div className="p-4">
-            <div className="flex items-start">
-                <div className="flex-shrink-0">
-                     <svg className="h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                </div>
-                <div className="ml-3 w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-medium text-gray-900">Reminder</p>
-                    <p className="mt-1 text-sm text-gray-500">{message}</p>
-                </div>
-                <div className="ml-4 flex-shrink-0 flex">
-                    <button onClick={onClose} className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-                        <span className="sr-only">Close</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                    </button>
+const NotificationToast: React.FC<{ message: string; onClose: () => void }> = ({ message, onClose }) => {
+    const isNewLead = message.includes('New Lead');
+    const isAssignment = message.includes('Lead Assigned');
+    
+    return (
+        <div className="fixed top-4 right-4 z-50 max-w-sm w-full bg-white border-l-4 border-primary shadow-2xl rounded-lg pointer-events-auto animate-in slide-in-from-top-2 duration-300">
+            <div className="p-4">
+                <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                        {isNewLead ? (
+                            <svg className="h-6 w-6 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                        ) : isAssignment ? (
+                            <svg className="h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        ) : (
+                            <svg className="h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                        )}
+                    </div>
+                    <div className="ml-3 w-0 flex-1 pt-0.5">
+                        <p className="text-sm font-bold text-gray-900">
+                            {isNewLead ? 'New Lead' : isAssignment ? 'Lead Assigned' : 'Notification'}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-700">{message}</p>
+                    </div>
+                    <div className="ml-4 flex-shrink-0 flex">
+                        <button onClick={onClose} className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+                            <span className="sr-only">Close</span>
+                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('Dashboard');
@@ -90,13 +107,16 @@ const App: React.FC = () => {
       // Try to fetch from backend API first
       try {
         const backendLeads = await api.getLeads();
-        if (backendLeads && backendLeads.length > 0) {
-          // Get local database leads
+        
+        // Always use backend leads if API is available (even if empty array)
+        // This ensures we're showing the latest data from Supabase
+        if (backendLeads !== null && backendLeads !== undefined) {
+          // Get local database leads for merging
           const localData = await db.getAllData();
           const localLeadIds = new Set(localData.leads.map(l => l.id));
           const localLeadMobiles = new Set(localData.leads.map(l => l.mobile));
           
-          // Save new leads from backend to local database
+          // Save new leads from backend to local database (for offline support)
           for (const backendLead of backendLeads) {
             // Check if lead doesn't exist in local database (by ID or mobile)
             const isNewLead = !localLeadIds.has(backendLead.id) && !localLeadMobiles.has(backendLead.mobile);
@@ -120,22 +140,27 @@ const App: React.FC = () => {
             }
           }
           
-          // Merge backend leads with local database leads
-          // Put local leads first, then backend leads so that
-          // Supabase/backend data overrides older local entries for same mobile/id
-          const allLeads = [...localData.leads, ...backendLeads];
-          // Remove duplicates based on mobile number (prefer backend leads)
-          const uniqueLeads = Array.from(
-            new Map(allLeads.map(lead => [lead.mobile || lead.id, lead])).values()
+          // Use backend leads as primary source (they're the source of truth)
+          // Merge with local leads only for leads that don't exist in backend
+          const backendLeadIds = new Set(backendLeads.map(l => l.id));
+          const backendLeadMobiles = new Set(backendLeads.map(l => l.mobile));
+          
+          // Add local leads that aren't in backend (for offline/legacy data)
+          const localOnlyLeads = localData.leads.filter(
+            lead => !backendLeadIds.has(lead.id) && !backendLeadMobiles.has(lead.mobile)
           );
-          setLeads(uniqueLeads);
+          
+          // Combine: backend leads first (source of truth), then local-only leads
+          const allLeads = [...backendLeads, ...localOnlyLeads];
+          setLeads(allLeads);
         } else {
-          // Fallback to local database if no backend leads
+          // Fallback to local database if backend returns null/undefined
+          console.warn('⚠️ Backend returned null/undefined, using local database');
           const data = await db.getAllData();
           setLeads(data.leads);
         }
       } catch (apiError) {
-        console.warn('Backend API not available, using local database:', apiError);
+        console.warn('⚠️ Backend API not available, using local database:', apiError);
         // Fallback to local database
         const data = await db.getAllData();
         setLeads(data.leads);
@@ -159,6 +184,115 @@ const App: React.FC = () => {
     loadData();
   }, [loadData]);
   
+  // Auto-refresh leads every 30 seconds to catch new webhook leads
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const refreshLeads = async () => {
+      try {
+        const backendLeads = await api.getLeads();
+        if (backendLeads !== null && backendLeads !== undefined) {
+          const localData = await db.getAllData();
+          const backendLeadIds = new Set(backendLeads.map(l => l.id));
+          const backendLeadMobiles = new Set(backendLeads.map(l => l.mobile));
+          
+          // Save new leads to local DB
+          for (const backendLead of backendLeads) {
+            const localLeadIds = new Set(localData.leads.map(l => l.id));
+            const localLeadMobiles = new Set(localData.leads.map(l => l.mobile));
+            const isNewLead = !localLeadIds.has(backendLead.id) && !localLeadMobiles.has(backendLead.mobile);
+            if (isNewLead) {
+              const leadToSave: Lead = {
+                ...backendLead,
+                assignedSalespersonId: backendLead.assignedSalespersonId || '',
+                status: backendLead.status || LeadStatus.New,
+                leadDate: backendLead.leadDate || new Date().toISOString(),
+                lastActivityDate: backendLead.lastActivityDate || new Date().toISOString(),
+                month: backendLead.month || new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
+                modeOfEnquiry: backendLead.modeOfEnquiry || ModeOfEnquiry.Website,
+                visitStatus: backendLead.visitStatus || 'No',
+                lastRemark: backendLead.lastRemark || backendLead.remarks || '',
+                isRead: backendLead.isRead || false,
+                missedVisitsCount: backendLead.missedVisitsCount || 0,
+                source: backendLead.source || 'website'
+              };
+              await db.addLead(leadToSave);
+            }
+          }
+          
+          // Update leads state
+          const localOnlyLeads = localData.leads.filter(
+            lead => !backendLeadIds.has(lead.id) && !backendLeadMobiles.has(lead.mobile)
+          );
+          const allLeads = [...backendLeads, ...localOnlyLeads];
+          setLeads(allLeads);
+        }
+      } catch (error) {
+        // Silently fail - don't spam console on refresh errors
+        console.debug('Auto-refresh leads error:', error);
+      }
+    };
+    
+    // Refresh immediately, then every 30 seconds
+    refreshLeads();
+    const intervalId = setInterval(refreshLeads, 30000);
+    return () => clearInterval(intervalId);
+  }, [currentUser]);
+  
+  // Notification polling for new leads and assignments
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    let lastChecked = new Date().toISOString();
+    
+    const checkNotifications = async () => {
+      try {
+        const newNotifications = await api.getNotifications(
+          currentUser.id,
+          currentUser.role,
+          lastChecked
+        );
+        
+        if (newNotifications.length > 0) {
+          // Show first notification as popup
+          const firstNotif = newNotifications[0];
+          let notificationMessage = '';
+          
+          if (firstNotif.type === 'new_lead') {
+            notificationMessage = `🎯 New Lead: ${firstNotif.leadData?.customerName || 'Unknown'}`;
+          } else if (firstNotif.type === 'lead_assigned') {
+            notificationMessage = `📋 Lead Assigned: ${firstNotif.leadData?.customerName || 'Unknown'}`;
+          } else {
+            notificationMessage = firstNotif.message || 'New notification';
+          }
+          
+          setNotification(notificationMessage);
+          
+          // Mark as read
+          try {
+            await api.markNotificationRead(firstNotif.id);
+          } catch (err) {
+            console.error('Error marking notification as read:', err);
+          }
+          
+          // Auto-dismiss after 5 seconds
+          setTimeout(() => setNotification(null), 5000);
+          
+          // Update lastChecked to current time
+          lastChecked = new Date().toISOString();
+        }
+      } catch (error) {
+        // Silently fail - backend might not be available
+        console.debug('Notification check failed (this is ok if backend is not available):', error);
+      }
+    };
+
+    // Check immediately, then every 5 seconds
+    checkNotifications();
+    const intervalId = setInterval(checkNotifications, 5000);
+    return () => clearInterval(intervalId);
+  }, [currentUser]);
+
   // Reminder Polling Logic
   useEffect(() => {
       if (!currentUser) return;
@@ -572,6 +706,7 @@ const App: React.FC = () => {
                     searchTerm={searchTerm}
                     onSearchChange={setSearchTerm}
                     searchResults={searchResults}
+                    leads={visibleLeads}
                     users={users}
                     currentUser={currentUser}
                     onLogout={handleLogout}

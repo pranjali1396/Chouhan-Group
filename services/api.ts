@@ -58,8 +58,13 @@ class ApiService {
 
   // Leads
   async getLeads() {
-    const response = await this.request<{ success: boolean; leads: any[] }>('/leads');
-    return response.leads || [];
+    try {
+      const response = await this.request<{ success: boolean; leads: any[] }>('/leads');
+      return response.leads || [];
+    } catch (error) {
+      console.error('❌ Error fetching leads:', error);
+      throw error;
+    }
   }
 
   async updateLead(id: string, updates: any) {
@@ -80,6 +85,23 @@ class ApiService {
   // Health check
   async healthCheck() {
     return this.request<{ status: string; message: string }>('/health');
+  }
+
+  // Notifications
+  async getNotifications(userId: string, role: string, lastChecked?: string) {
+    const params = new URLSearchParams({
+      userId,
+      role,
+      ...(lastChecked && { lastChecked })
+    });
+    const response = await this.request<{ success: boolean; notifications: any[]; count: number }>(`/notifications?${params}`);
+    return response.notifications || [];
+  }
+
+  async markNotificationRead(notificationId: string) {
+    return this.request<{ success: boolean; notification: any }>(`/notifications/${notificationId}/read`, {
+      method: 'POST',
+    });
   }
 }
 

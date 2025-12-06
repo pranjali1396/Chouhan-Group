@@ -53,6 +53,9 @@ app.get('/health', (req, res) => {
 // In-memory storage for testing / fallback (temporary)
 let receivedLeads = [];
 
+// In-memory notifications storage
+let notifications = [];
+
 // Get all received leads (for testing and frontend)
 app.get('/api/v1/webhooks/leads', (req, res) => {
   res.json({
@@ -204,6 +207,16 @@ app.put('/api/v1/leads/:id', async (req, res) => {
       key => updateData[key] === undefined && delete updateData[key]
     );
 
+    // Get current lead to check previous assignment
+    const { data: currentLead } = await supabase
+      .from('leads')
+      .select('assigned_salesperson_id')
+      .eq('id', id)
+      .single();
+    
+    const previousAssigneeId = currentLead?.assigned_salesperson_id || null;
+    const newAssigneeId = updateData.assigned_salesperson_id || null;
+
     const { data, error } = await supabase
       .from('leads')
       .update(updateData)
@@ -218,6 +231,62 @@ app.put('/api/v1/leads/:id', async (req, res) => {
         error: 'Failed to update lead',
         message: error.message
       });
+    }
+
+    // Create notification if lead was assigned to someone
+    if (newAssigneeId && newAssigneeId !== previousAssigneeId) {
+      const notificationId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const notification = {
+        id: notificationId,
+        type: 'lead_assigned',
+        message: `Lead assigned: ${data.customer_name || 'Unknown'}`,
+        leadId: id,
+        leadData: {
+          customerName: data.customer_name || '',
+          mobile: data.mobile || '',
+          email: data.email || '',
+          interestedProject: data.interested_project || '',
+          status: data.status || 'New Lead'
+        },
+        targetUserId: newAssigneeId, // Notify assigned user
+        createdAt: new Date().toISOString(),
+        isRead: false
+      };
+      
+      // Save to Supabase if available
+      if (supabase) {
+        try {
+          const { error: supabaseError } = await supabase
+            .from('notifications')
+            .insert({
+              id: notificationId,
+              type: 'lead_assigned',
+              message: notification.message,
+              lead_id: id,
+              lead_data: notification.leadData,
+              target_role: null,
+              target_user_id: newAssigneeId,
+              created_at: notification.createdAt,
+              is_read: false
+            });
+          
+          if (supabaseError) {
+            console.error('❌ Error saving assignment notification to Supabase:', supabaseError);
+            // Fallback to in-memory
+            notifications.push(notification);
+          } else {
+            console.log(`🔔 Notification saved to Supabase for lead assignment to user ${newAssigneeId}`);
+          }
+        } catch (error) {
+          console.error('❌ Error saving assignment notification:', error);
+          // Fallback to in-memory
+          notifications.push(notification);
+        }
+      } else {
+        // Fallback to in-memory storage
+        notifications.push(notification);
+        console.log(`🔔 Notification created (in-memory) for lead assignment to user ${newAssigneeId}`);
+      }
     }
 
     const row = data;
@@ -381,6 +450,61 @@ app.post('/api/v1/webhooks/lead', async (req, res) => {
     
     console.log(`💾 Lead stored in memory. Total in-memory leads: ${receivedLeads.length}`);
 
+    // Create notification for admin users about new lead
+    const notificationId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const notification = {
+      id: notificationId,
+      type: 'new_lead',
+      message: `New lead from ${leadData.customerName || 'Unknown'}`,
+      leadId: leadId,
+      leadData: {
+        customerName: leadData.customerName || '',
+        mobile: leadData.mobile || '',
+        email: leadData.email || '',
+        interestedProject: leadData.interestedProject || '',
+        status: 'New Lead',
+        source: leadData.source || 'website'
+      },
+      targetRole: 'Admin', // Notify all admin users
+      createdAt: now.toISOString(),
+      isRead: false
+    };
+    
+    // Save to Supabase if available
+    if (supabase) {
+      try {
+        const { error: supabaseError } = await supabase
+          .from('notifications')
+          .insert({
+            id: notificationId,
+            type: 'new_lead',
+            message: notification.message,
+            lead_id: leadId,
+            lead_data: notification.leadData,
+            target_role: 'Admin',
+            target_user_id: null,
+            created_at: now.toISOString(),
+            is_read: false
+          });
+        
+        if (supabaseError) {
+          console.error('❌ Error saving notification to Supabase:', supabaseError);
+          // Fallback to in-memory
+          notifications.push(notification);
+        } else {
+          console.log(`🔔 Notification saved to Supabase for new lead: ${leadData.customerName || 'Unknown'}`);
+        }
+      } catch (error) {
+        console.error('❌ Error saving notification:', error);
+        // Fallback to in-memory
+        notifications.push(notification);
+      }
+    } else {
+      // Fallback to in-memory storage
+      notifications.push(notification);
+      console.log(`🔔 Notification created (in-memory) for new lead: ${leadData.customerName || 'Unknown'}`);
+    }
+
     res.json({
       success: true,
       message: 'Lead received successfully!',
@@ -394,6 +518,177 @@ app.post('/api/v1/webhooks/lead', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+// Test endpoint to see all notifications (for debugging)
+app.get('/api/v1/notifications/debug', (req, res) => {
+  res.json({
+    success: true,
+    totalNotifications: notifications.length,
+    notifications: notifications,
+    message: 'This is a debug endpoint showing all notifications in memory'
+  });
+});
+
+// Get notifications endpoint
+app.get('/api/v1/notifications', async (req, res) => {
+  try {
+    const { userId, role, lastChecked } = req.query;
+    console.log('📬 GET /api/v1/notifications - userId:', userId, 'role:', role, 'lastChecked:', lastChecked);
+    
+    let allNotifications = [];
+    
+    // Try to fetch from Supabase first
+    if (supabase) {
+      try {
+        let query = supabase
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        // Filter by role
+        if (role === 'Admin') {
+          query = query.or('target_role.eq.Admin,target_role.is.null');
+        } else {
+          query = query.eq('target_user_id', userId);
+        }
+        
+        // Filter by lastChecked if provided
+        if (lastChecked) {
+          query = query.gt('created_at', lastChecked);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('❌ Error fetching notifications from Supabase:', error);
+          // Fallback to in-memory
+          allNotifications = notifications;
+        } else {
+          // Format Supabase notifications
+          allNotifications = (data || []).map(row => ({
+            id: row.id,
+            type: row.type,
+            message: row.message,
+            leadId: row.lead_id,
+            leadData: row.lead_data || {},
+            targetRole: row.target_role,
+            targetUserId: row.target_user_id,
+            createdAt: row.created_at,
+            isRead: row.is_read
+          }));
+          console.log('📋 Fetched', allNotifications.length, 'notifications from Supabase');
+        }
+      } catch (error) {
+        console.error('❌ Error querying Supabase:', error);
+        // Fallback to in-memory
+        allNotifications = notifications;
+      }
+    } else {
+      // Use in-memory notifications
+      allNotifications = notifications;
+      console.log('📋 Using in-memory notifications:', allNotifications.length);
+    }
+    
+    const lastCheckedDate = lastChecked ? new Date(lastChecked) : new Date(0);
+    
+    // Filter notifications based on user role and ID
+    let filteredNotifications = allNotifications.filter(notif => {
+      // Check if notification is newer than lastChecked (only if lastChecked is provided)
+      if (lastChecked && new Date(notif.createdAt) <= lastCheckedDate) {
+        return false;
+      }
+      
+      // Admin users see all admin notifications
+      if (role === 'Admin') {
+        return notif.targetRole === 'Admin' || !notif.targetRole;
+      }
+      
+      // Regular users see only their assigned notifications
+      if (notif.targetUserId) {
+        return notif.targetUserId === userId;
+      }
+      
+      return false;
+    });
+    
+    // Sort by newest first
+    filteredNotifications.sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    
+    console.log('✅ Returning', filteredNotifications.length, 'notifications');
+    
+    res.json({
+      success: true,
+      notifications: filteredNotifications,
+      count: filteredNotifications.length
+    });
+  } catch (error) {
+    console.error('❌ Error getting notifications:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch notifications',
+      message: error.message
+    });
+  }
+});
+
+// Mark notification as read
+app.post('/api/v1/notifications/:id/read', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Update in Supabase if available
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Error updating notification in Supabase:', error);
+        // Fallback to in-memory
+        const notification = notifications.find(n => n.id === id);
+        if (notification) {
+          notification.isRead = true;
+          return res.json({ success: true, notification });
+        }
+      } else if (data) {
+        // Format and return Supabase notification
+        const notification = {
+          id: data.id,
+          type: data.type,
+          message: data.message,
+          leadId: data.lead_id,
+          leadData: data.lead_data || {},
+          targetRole: data.target_role,
+          targetUserId: data.target_user_id,
+          createdAt: data.created_at,
+          isRead: data.is_read
+        };
+        return res.json({ success: true, notification });
+      }
+    }
+    
+    // Fallback to in-memory
+    const notification = notifications.find(n => n.id === id);
+    if (notification) {
+      notification.isRead = true;
+      res.json({ success: true, notification });
+    } else {
+      res.status(404).json({ success: false, error: 'Notification not found' });
+    }
+  } catch (error) {
+    console.error('❌ Error marking notification as read:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to mark notification as read',
       message: error.message
     });
   }
