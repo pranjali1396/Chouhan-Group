@@ -34,6 +34,7 @@ interface LeadsPageProps {
   onBulkUpdate: (leadIds: string[], newStatus?: LeadStatus, newAssignedSalespersonId?: string) => void;
   onImportLeads: (newLeads: Omit<Lead, 'id' | 'isRead' | 'missedVisitsCount' | 'lastActivityDate' | 'month'>[]) => void;
   onAddTask: (task: Omit<Task, 'id'>) => void;
+  onDeleteLead?: (leadId: string) => void;
   onLogout: () => void;
   onNavigate: (view: string) => void;
   targetLeadId?: string | null;
@@ -445,7 +446,7 @@ const FilterChip: React.FC<{ label: string; isActive: boolean; onClick: () => vo
     </button>
 );
 
-const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users, currentUser, onUpdateLead, onAddActivity, activities, onAssignLead, onBulkUpdate, onImportLeads, onAddTask, onLogout, onNavigate, targetLeadId, onClearTargetLead, projects = [] }) => {
+const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users, currentUser, onUpdateLead, onAddActivity, activities, onAssignLead, onBulkUpdate, onImportLeads, onAddTask, onDeleteLead, onLogout, onNavigate, targetLeadId, onClearTargetLead, projects = [] }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [showAddLead, setShowAddLead] = useState(false);
@@ -868,6 +869,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                 currentUser={currentUser}
                 activities={activities.filter(a => a.leadId === selectedLead.id)}
                 onAddTask={onAddTask}
+                onDeleteLead={onDeleteLead}
                 projects={projects} // Pass inventory
             />
         )}

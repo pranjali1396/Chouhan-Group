@@ -103,6 +103,18 @@ class ApiService {
       method: 'POST',
     });
   }
+
+  async deleteNotification(notificationId: string) {
+    return this.request<{ success: boolean; message: string }>(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteLead(leadId: string, role: string) {
+    return this.request<{ success: boolean; message: string }>(`/leads/${leadId}?role=${role}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiService();

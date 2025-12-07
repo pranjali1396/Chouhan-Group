@@ -694,6 +694,117 @@ app.post('/api/v1/notifications/:id/read', async (req, res) => {
   }
 });
 
+// Delete notification
+app.delete('/api/v1/notifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Delete from Supabase if available
+    if (supabase) {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('❌ Error deleting notification from Supabase:', error);
+        // Fallback to in-memory
+        const index = notifications.findIndex(n => n.id === id);
+        if (index !== -1) {
+          notifications.splice(index, 1);
+          return res.json({ success: true, message: 'Notification deleted' });
+        }
+      } else {
+        console.log(`🗑️ Notification ${id} deleted from Supabase`);
+        return res.json({ success: true, message: 'Notification deleted' });
+      }
+    }
+    
+    // Fallback to in-memory
+    const index = notifications.findIndex(n => n.id === id);
+    if (index !== -1) {
+      notifications.splice(index, 1);
+      res.json({ success: true, message: 'Notification deleted' });
+    } else {
+      res.status(404).json({ success: false, error: 'Notification not found' });
+    }
+  } catch (error) {
+    console.error('❌ Error deleting notification:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete notification',
+      message: error.message
+    });
+  }
+});
+
+// Delete lead (Admin only)
+app.delete('/api/v1/leads/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.query; // Expect role to be passed as query param for admin check
+    
+    // Check if user is admin
+    if (role !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'Only admins can delete leads'
+      });
+    }
+    
+    // Delete from Supabase if available
+    if (supabase) {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('❌ Error deleting lead from Supabase:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to delete lead',
+          message: error.message
+        });
+      } else {
+        console.log(`🗑️ Lead ${id} deleted from Supabase by admin`);
+        
+        // Also delete associated notifications
+        await supabase
+          .from('notifications')
+          .delete()
+          .eq('lead_id', id);
+        
+        return res.json({ success: true, message: 'Lead deleted successfully' });
+      }
+    }
+    
+    // Fallback: remove from in-memory leads
+    const leadIndex = receivedLeads.findIndex(l => l.id === id);
+    if (leadIndex !== -1) {
+      receivedLeads.splice(leadIndex, 1);
+    }
+    
+    // Also remove associated notifications
+    const notificationIndices = notifications
+      .map((n, idx) => n.leadId === id ? idx : -1)
+      .filter(idx => idx !== -1)
+      .reverse(); // Reverse to delete from end to avoid index shifting
+    
+    notificationIndices.forEach(idx => notifications.splice(idx, 1));
+    
+    res.json({ success: true, message: 'Lead deleted successfully' });
+  } catch (error) {
+    console.error('❌ Error deleting lead:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete lead',
+      message: error.message
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log('\n🚀 ========================================');

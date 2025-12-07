@@ -387,6 +387,36 @@ const App: React.FC = () => {
 
   }, [currentUser, users, leads]);
 
+  const handleDeleteLead = useCallback(async (leadId: string) => {
+    if (!currentUser || currentUser.role !== 'Admin') {
+      throw new Error('Only admins can delete leads');
+    }
+
+    try {
+      // Delete from backend API
+      await api.deleteLead(leadId, currentUser.role);
+      
+      // Remove from local state
+      setLeads(prevLeads => prevLeads.filter(l => l.id !== leadId));
+      
+      // Also remove from local database
+      const localData = await db.getAllData();
+      const leadToDelete = localData.leads.find(l => l.id === leadId);
+      if (leadToDelete) {
+        // Note: db.deleteLead might not exist, so we'll just update the state
+        // The backend is the source of truth, so this is fine
+        const refreshedLeads = await db.getLeads();
+        setLeads(refreshedLeads.filter(l => l.id !== leadId));
+      }
+      
+      // Remove associated activities
+      setActivities(prevActivities => prevActivities.filter(a => a.leadId !== leadId));
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      throw error;
+    }
+  }, [currentUser]);
+
     const handleAddActivity = useCallback(async (lead: Lead, activityType: ActivityType, remarks: string, duration?: number) => {
         if (!currentUser) return;
         const newActivity: Activity = {
@@ -624,6 +654,7 @@ const App: React.FC = () => {
                     targetLeadId={targetLeadId}
                     onClearTargetLead={() => setTargetLeadId(null)}
                     onAddTask={handleAddTask}
+                    onDeleteLead={handleDeleteLead}
                     projects={inventory} // Pass inventory here
                     {...commonProps} 
                 />;

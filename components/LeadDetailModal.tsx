@@ -16,6 +16,7 @@ interface LeadDetailModalProps {
   activities: Activity[];
   onAddTask: (task: Omit<Task, 'id'>) => void;
   projects?: Project[];
+  onDeleteLead?: (leadId: string) => void;
 }
 
 // --- Sub-Components ---
@@ -184,7 +185,7 @@ const SMSModal: React.FC<{ lead: Lead; onClose: () => void; onSend: (message: st
 
 // --- Main Modal Component ---
 
-const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose, onUpdateLead, onAddActivity, currentUser, activities, onAddTask, projects }) => {
+const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose, onUpdateLead, onAddActivity, currentUser, activities, onAddTask, projects, onDeleteLead }) => {
   const [activeTab, setActiveTab] = useState('Details');
 
   const [newStatus, setNewStatus] = useState<LeadStatus>(lead.status);
@@ -361,7 +362,31 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                 <span className="flex items-center"><DocumentTextIcon className="w-4 h-4 mr-1"/> {lead.interestedProject || 'No Project'}</span>
              </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+          <div className="flex items-center gap-2">
+            {isAdmin && onDeleteLead && (
+              <button
+                onClick={async () => {
+                  if (window.confirm(`Are you sure you want to delete the lead for ${lead.customerName}? This action cannot be undone.`)) {
+                    try {
+                      await onDeleteLead(lead.id);
+                      onClose();
+                    } catch (error) {
+                      console.error('Error deleting lead:', error);
+                      alert('Failed to delete lead. Please try again.');
+                    }
+                  }
+                }}
+                className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1.5"
+                title="Delete lead"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            )}
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+          </div>
         </div>
         
         {/* Tabs */}

@@ -42,6 +42,7 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const menuRef = useRef<HTMLDivElement>(null);
   const lastCheckedRef = useRef<string>(new Date().toISOString());
   const hasLoadedInitialRef = useRef<boolean>(false);
@@ -69,7 +70,9 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
         console.log('📬 All notifications (first load):', allNotifications.length);
         console.log('📬 Notification details:', JSON.stringify(allNotifications, null, 2));
         if (allNotifications.length > 0) {
-          setNotifications(allNotifications.slice(0, 20));
+          // Filter out read notifications - only show unread ones
+          const unreadNotifications = allNotifications.filter(n => !n.isRead);
+          setNotifications(unreadNotifications.slice(0, 20));
         } else {
           console.log('⚠️ No notifications received - checking debug endpoint...');
           // Try debug endpoint to see what's in backend
@@ -101,7 +104,14 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
       
       if (newNotifications.length > 0) {
         setNotifications(prev => {
-          const combined = [...newNotifications, ...prev];
+          // Filter out notifications that are being removed or are already read
+          const filtered = prev.filter(n => {
+            // Check if notification is in removingIds by using a ref-like approach
+            // Since we can't access state directly, we'll filter read notifications
+            // and rely on the removingIds state for the animation
+            return !n.isRead;
+          });
+          const combined = [...newNotifications, ...filtered];
           // Remove duplicates and sort by date
           const unique = Array.from(
             new Map(combined.map(n => [n.id, n])).values()
@@ -131,23 +141,44 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
     return () => clearInterval(intervalId);
   }, [currentUser]);
 
-  // Update unread count
+  // Update unread count (excluding notifications being removed)
   useEffect(() => {
-    const unread = notifications.filter(n => !n.isRead).length;
+    const unread = notifications.filter(n => !n.isRead && !removingIds.has(n.id)).length;
     setUnreadCount(unread);
-  }, [notifications]);
+  }, [notifications, removingIds]);
 
   const handleNotificationClick = async (notification: Notification) => {
-    // Mark as read
+    // Mark as read and remove from list
     if (!notification.isRead) {
       try {
         await api.markNotificationRead(notification.id);
-        setNotifications(prev => 
-          prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n)
-        );
+        
+        // Add to removing set for animation
+        setRemovingIds(prev => new Set(prev).add(notification.id));
+        
+        // Remove after animation completes
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(n => n.id !== notification.id));
+          setRemovingIds(prev => {
+            const next = new Set(prev);
+            next.delete(notification.id);
+            return next;
+          });
+        }, 300); // Match animation duration
       } catch (err) {
         console.error('Error marking notification as read:', err);
       }
+    } else {
+      // If already read, just remove it immediately
+      setRemovingIds(prev => new Set(prev).add(notification.id));
+      setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== notification.id));
+        setRemovingIds(prev => {
+          const next = new Set(prev);
+          next.delete(notification.id);
+          return next;
+        });
+      }, 300);
     }
 
     // Navigate to leads page and open the lead
@@ -165,6 +196,8 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
 
   const markAllAsRead = async () => {
     const unreadNotifications = notifications.filter(n => !n.isRead);
+    
+    // Mark all as read in backend
     for (const notif of unreadNotifications) {
       try {
         await api.markNotificationRead(notif.id);
@@ -172,7 +205,48 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
         console.error('Error marking notification as read:', err);
       }
     }
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    
+    // Add all to removing set for animation
+    const unreadIds = new Set(unreadNotifications.map(n => n.id));
+    setRemovingIds(prev => new Set([...prev, ...unreadIds]));
+    
+    // Remove all after animation completes
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => !unreadIds.has(n.id)));
+      setRemovingIds(prev => {
+        const next = new Set(prev);
+        unreadIds.forEach(id => next.delete(id));
+        return next;
+      });
+    }, 300); // Match animation duration
+  };
+
+  const handleDeleteNotification = async (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation(); // Prevent triggering the notification click
+    
+    if (!window.confirm('Are you sure you want to delete this notification?')) {
+      return;
+    }
+    
+    try {
+      await api.deleteNotification(notificationId);
+      
+      // Add to removing set for animation
+      setRemovingIds(prev => new Set(prev).add(notificationId));
+      
+      // Remove after animation completes
+      setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        setRemovingIds(prev => {
+          const next = new Set(prev);
+          next.delete(notificationId);
+          return next;
+        });
+      }, 300);
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+      alert('Failed to delete notification. Please try again.');
+    }
   };
 
   return (
@@ -212,57 +286,76 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
             ) : (
               <div className="divide-y divide-gray-100">
                 {notifications.map((notification) => (
-                  <button
+                  <div
                     key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
-                      !notification.isRead ? 'bg-blue-50/50' : ''
+                    className={`relative group w-full transition-all duration-300 ${
+                      removingIds.has(notification.id) 
+                        ? 'opacity-0 translate-x-full max-h-0 overflow-hidden' 
+                        : 'opacity-100 translate-x-0'
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className={`flex-shrink-0 mt-1 ${
-                        notification.type === 'new_lead' ? 'text-green-500' : 'text-blue-500'
-                      }`}>
-                        {notification.type === 'new_lead' ? (
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        ) : (
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold ${
-                          !notification.isRead ? 'text-gray-900' : 'text-gray-700'
+                    <button
+                      onClick={() => handleNotificationClick(notification)}
+                      className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
+                        !notification.isRead ? 'bg-blue-50/50' : ''
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`flex-shrink-0 mt-1 ${
+                          notification.type === 'new_lead' ? 'text-green-500' : 'text-blue-500'
                         }`}>
-                          {notification.message || (notification.type === 'new_lead' ? `New lead from ${notification.leadData?.customerName || 'Unknown'}` : 'Lead Assigned')}
-                        </p>
-                        {notification.type === 'lead_assigned' && (
-                          <p className="text-sm text-gray-600 mt-0.5">
-                            {notification.leadData?.customerName || 'Unknown'}
+                          {notification.type === 'new_lead' ? (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-semibold ${
+                            !notification.isRead ? 'text-gray-900' : 'text-gray-700'
+                          }`}>
+                            {notification.message || (notification.type === 'new_lead' ? `New lead from ${notification.leadData?.customerName || 'Unknown'}` : 'Lead Assigned')}
                           </p>
-                        )}
-                        {notification.leadData?.mobile && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            📱 {notification.leadData.mobile}
+                          {notification.type === 'lead_assigned' && (
+                            <p className="text-sm text-gray-600 mt-0.5">
+                              {notification.leadData?.customerName || 'Unknown'}
+                            </p>
+                          )}
+                          {notification.leadData?.mobile && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              📱 {notification.leadData.mobile}
+                            </p>
+                          )}
+                          {notification.leadData?.interestedProject && (
+                            <p className="text-xs text-gray-500">
+                              🏢 {notification.leadData.interestedProject}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(notification.createdAt).toLocaleString()}
                           </p>
-                        )}
-                        {notification.leadData?.interestedProject && (
-                          <p className="text-xs text-gray-500">
-                            🏢 {notification.leadData.interestedProject}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-400 mt-2">
-                          {new Date(notification.createdAt).toLocaleString()}
-                        </p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          {!notification.isRead && (
+                            <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
+                          )}
+                          <button
+                            onClick={(e) => handleDeleteNotification(e, notification.id)}
+                            className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete notification"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                      {!notification.isRead && (
-                        <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
-                      )}
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
