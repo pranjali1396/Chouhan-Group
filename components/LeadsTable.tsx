@@ -67,7 +67,7 @@ const MobileLeadCard: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
         <div className="flex justify-between items-start mb-3">
             <div className="flex-1 min-w-0 pr-3">
                 <div className="flex items-center gap-2 mb-1">
-                    {!lead.isRead && <span className="h-2.5 w-2.5 bg-primary rounded-full flex-shrink-0 animate-pulse" title="Unread"></span>}
+                    <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${!lead.isRead ? 'bg-primary animate-pulse' : 'bg-transparent'}`} title={lead.isRead ? 'Read' : 'Unread'}></span>
                     <p className="font-bold text-slate-800 truncate text-base" title={lead.customerName}>{lead.customerName}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -140,7 +140,7 @@ const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
         </td>
         <td className="px-3 py-3.5">
             <div className="flex items-center min-w-0">
-                {!lead.isRead && <span className="h-2 w-2 bg-primary rounded-full mr-2 flex-shrink-0 animate-pulse" title="Unread"></span>}
+                <span className={`h-2 w-2 rounded-full mr-2 flex-shrink-0 ${!lead.isRead ? 'bg-primary animate-pulse' : 'bg-transparent'}`} title={lead.isRead ? 'Read' : 'Unread'}></span>
                 <div className="min-w-0 flex-1">
                     <div className="font-bold text-slate-800 text-xs truncate" title={lead.customerName}>{lead.customerName}</div>
                     <div className="text-slate-500 text-[10px] font-medium mt-0.5 truncate">{lead.mobile}</div>
@@ -149,16 +149,25 @@ const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
         </td>
         <td className="px-3 py-3.5">
             <div className="text-slate-700 text-xs font-semibold">{new Date(lead.leadDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
-            <div className="text-slate-400 text-[10px] mt-0.5">{lead.modeOfEnquiry}</div>
+            {(() => {
+                const displayMode = lead.modeOfEnquiry === 'Digital' ? 'Website' : lead.modeOfEnquiry;
+                const displaySource = lead.source && lead.source.toLowerCase() !== displayMode.toLowerCase() ? lead.source : null;
+                
+                return (
+                    <>
+                        <div className="text-slate-400 text-[10px] mt-0.5">{displayMode}</div>
+                        {displaySource && (
+                            <div className="mt-1">
+                                <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{displaySource}</span>
+                            </div>
+                        )}
+                    </>
+                );
+            })()}
             {lead.status === LeadStatus.Contacted && lead.contactDate && (
                 <div className="text-slate-500 text-[10px] font-medium mt-0.5">
                     <span className="text-green-600">✓ {new Date(lead.contactDate).toLocaleDateString()}</span>
                     {lead.contactDuration && <span className="text-slate-400 ml-1">({lead.contactDuration}m)</span>}
-                </div>
-            )}
-            {lead.source && (
-                <div className="mt-1">
-                    <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{lead.source}</span>
                 </div>
             )}
         </td>

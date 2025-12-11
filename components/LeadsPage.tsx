@@ -626,12 +626,18 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         }
 
         // 2.6. Handle assigned tab - show leads WITH assigned salesperson (Admin only)
+        // Exclude unassigned leads (null, empty string, 'Unassigned', or assigned to admin)
         if (activeTab === 'assigned' && currentUser.role === 'Admin') {
-            filtered = filtered.filter(l =>
-                l.assignedSalespersonId &&
-                l.assignedSalespersonId !== '' &&
-                l.assignedSalespersonId !== adminUser?.id
-            );
+            filtered = filtered.filter(l => {
+                const assignedId = l.assignedSalespersonId;
+                // Must have a valid assigned salesperson ID
+                if (!assignedId || assignedId === '' || assignedId === 'Unassigned' || assignedId === adminUser?.id) {
+                    return false;
+                }
+                // Check if the assigned ID exists in users (valid user)
+                const assignedUser = users.find(u => u.id === assignedId);
+                return assignedUser !== undefined && assignedUser.role !== 'Admin';
+            });
         }
 
         // 2.7. Handle "New Leads" tab for non-admin users - show ALL their assigned leads (all statuses)
