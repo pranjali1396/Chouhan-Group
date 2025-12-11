@@ -10,6 +10,19 @@ interface SearchResultsProps {
 
 const SearchResults: React.FC<SearchResultsProps> = ({ results, users, onResultClick }) => {
     const userMap = new Map(users.map(user => [user.id, user.name]));
+    
+    // Helper function to get salesperson name with better error handling
+    const getSalespersonName = (assignedId: string | null | undefined): string => {
+        if (!assignedId || assignedId === '' || assignedId === 'admin-0') {
+            return 'Unassigned';
+        }
+        const name = userMap.get(assignedId);
+        if (!name) {
+            const user = users.find(u => u.id === assignedId || u.name === assignedId);
+            return user?.name || 'Unassigned';
+        }
+        return name;
+    };
 
     return (
         <div className="absolute top-full mt-2 w-full max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
@@ -37,7 +50,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, users, onResultC
                                     {lead.interestedProject || 'General'}
                                 </span>
                                 <span className="flex items-center truncate max-w-[150px]">
-                                     Assigned to: {userMap.get(lead.assignedSalespersonId) || 'Admin'}
+                                     Assigned to: {getSalespersonName(lead.assignedSalespersonId)}
                                 </span>
                             </div>
                         </li>

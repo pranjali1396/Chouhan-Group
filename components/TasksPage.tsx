@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Task, User } from '../types';
-import { TrashIcon, UserCircleIcon, CalendarIcon, CheckCircleIcon } from './Icons';
+import { TrashIcon, UserCircleIcon, CalendarIcon, CheckCircleIcon, DocumentTextIcon, PencilSquareIcon } from './Icons';
 
 interface TasksPageProps {
     tasks: Task[];
@@ -9,6 +9,7 @@ interface TasksPageProps {
     currentUser: User;
     onAddTask: (task: Omit<Task, 'id'>) => void;
     onToggleTask: (taskId: string) => void;
+    onUpdateTask?: (taskId: string, updates: Partial<Task>) => void;
     onDeleteTask: (taskId: string) => void;
     onLogout: () => void;
     onNavigate: (view: string) => void;
@@ -19,12 +20,43 @@ const TaskItem: React.FC<{
     user?: User;
     onToggle: (id: string) => void;
     onDelete: (id: string) => void;
-}> = ({ task, user, onToggle, onDelete }) => {
+    onUpdateTask?: (taskId: string, updates: Partial<Task>) => void;
+    currentUser: User;
+}> = ({ task, user, onToggle, onDelete, onUpdateTask, currentUser }) => {
+    const [showRemarks, setShowRemarks] = useState(false);
+    const [remarks, setRemarks] = useState(task.remarks || '');
+    const [isEditingRemarks, setIsEditingRemarks] = useState(false);
+    useEffect(() => {
+        setRemarks(task.remarks || '');
+    }, [task.remarks]);
+
     const handleDeleteClick = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent toggling the task when clicking delete
         if (window.confirm(`Are you sure you want to delete this task: "${task.title}"?`)) {
             onDelete(task.id);
         }
+    };
+
+    const handleToggleRemarks = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowRemarks(!showRemarks);
+        if (!showRemarks && !task.remarks) {
+            setIsEditingRemarks(true);
+        }
+    };
+
+    const handleSaveRemarks = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onUpdateTask) {
+            onUpdateTask(task.id, { remarks: remarks.trim() || undefined });
+        }
+        setIsEditingRemarks(false);
+    };
+
+    const handleCancelRemarks = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setRemarks(task.remarks || '');
+        setIsEditingRemarks(false);
     };
 
     // Determine status
@@ -38,18 +70,19 @@ const TaskItem: React.FC<{
     return (
         <div className={`group flex items-start justify-between p-4 rounded-lg border transition-all duration-200 ${
             task.isCompleted 
-                ? 'bg-gray-50 border-transparent opacity-75' 
+                ? 'bg-green-50 border-green-200' 
                 : isOverdue 
                     ? 'bg-red-50 border-red-200 shadow-sm' 
                     : 'bg-white border-border-color hover:border-primary hover:shadow-md'
         }`}>
-            <div className="flex items-start cursor-pointer flex-grow min-w-0 gap-3" onClick={() => onToggle(task.id)}>
+            <div className="flex items-start flex-grow min-w-0 gap-3">
                 <div className="mt-0.5 relative">
                     <input
                         type="checkbox"
                         checked={task.isCompleted}
-                        readOnly
-                        className={`peer h-5 w-5 rounded border-2 text-primary focus:ring-primary cursor-pointer transition-colors ${
+                        onChange={() => onToggle(task.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`h-5 w-5 rounded border-2 text-primary focus:ring-primary cursor-pointer transition-colors ${
                             isOverdue ? 'border-red-300' : 'border-gray-300'
                         }`}
                     />
@@ -58,7 +91,7 @@ const TaskItem: React.FC<{
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                         <p className={`font-medium truncate transition-all ${
-                            task.isCompleted ? 'text-muted-content line-through decoration-gray-400' : 'text-base-content'
+                            task.isCompleted ? 'text-gray-600' : 'text-base-content'
                         }`}>
                             {task.title}
                         </p>
@@ -102,21 +135,99 @@ const TaskItem: React.FC<{
                             Added by {task.createdBy}
                         </span>
                     </div>
+
+                    {/* Remarks Section */}
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center justify-between mb-2">
+                            <button
+                                onClick={handleToggleRemarks}
+                                className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                            >
+                                <DocumentTextIcon className="w-4 h-4" />
+                                {task.remarks ? 'View/Edit Remarks' : 'Add Remarks'}
+                            </button>
+                            {task.remarks && !isEditingRemarks && (
+                                <span className="text-xs text-gray-500">✓ Has remarks</span>
+                            )}
+                        </div>
+                        {showRemarks && (
+                            <div className="mt-2">
+                                {isEditingRemarks ? (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            value={remarks}
+                                            onChange={(e) => setRemarks(e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            rows={4}
+                                            className="input-style w-full text-sm p-3 min-h-[100px] resize-y"
+                                            placeholder="Enter task remarks, notes, or completion details..."
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                            <button
+                                                onClick={handleCancelRemarks}
+                                                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleSaveRemarks}
+                                                className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                                            >
+                                                Save Remarks
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.remarks || 'No remarks added yet.'}</p>
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsEditingRemarks(true);
+                                            }}
+                                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                                        >
+                                            <PencilSquareIcon className="w-3.5 h-3.5" />
+                                            Edit Remarks
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
             
-            <button
-                onClick={handleDeleteClick}
-                className="ml-2 p-2 rounded-full text-muted-content hover:bg-red-100 hover:text-danger opacity-0 group-hover:opacity-100 transition-all duration-200"
-                title="Delete Task"
-            >
-                <TrashIcon className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2 ml-2">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onToggle(task.id);
+                    }}
+                    className={`p-2 rounded-full transition-all ${
+                        task.isCompleted 
+                            ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                    }`}
+                    title={task.isCompleted ? 'Mark as Pending' : 'Mark as Completed'}
+                >
+                    <CheckCircleIcon className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={handleDeleteClick}
+                    className="p-2 rounded-full text-muted-content hover:bg-red-100 hover:text-danger opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    title="Delete Task"
+                >
+                    <TrashIcon className="w-4 h-4" />
+                </button>
+            </div>
         </div>
     );
 };
 
-const TasksPage: React.FC<TasksPageProps> = ({ tasks, users, currentUser, onAddTask, onToggleTask, onDeleteTask, onLogout, onNavigate }) => {
+const TasksPage: React.FC<TasksPageProps> = ({ tasks, users, currentUser, onAddTask, onToggleTask, onUpdateTask, onDeleteTask, onLogout, onNavigate }) => {
     const [title, setTitle] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [reminderOffset, setReminderOffset] = useState<string>('');
@@ -152,14 +263,23 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, users, currentUser, onAddT
     };
 
     const sortedTasks = useMemo(() => {
-        return [...tasks].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        // Remove duplicates by task ID (keep first occurrence)
+        const uniqueTasks = Array.from(
+            new Map(tasks.map(task => [task.id, task])).values()
+        );
+        return uniqueTasks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     }, [tasks]);
 
     const { pendingTasks, completedTasks } = useMemo(() => {
-        const pending = sortedTasks.filter(t => !t.isCompleted);
-        const completed = sortedTasks.filter(t => t.isCompleted);
+        // Admin sees all tasks, regular users see only their assigned tasks
+        const filteredTasks = currentUser.role === 'Admin' 
+            ? sortedTasks 
+            : sortedTasks.filter(t => t.assignedToId === currentUser.id);
+        
+        const pending = filteredTasks.filter(t => !t.isCompleted);
+        const completed = filteredTasks.filter(t => t.isCompleted);
         return { pendingTasks: pending, completedTasks: completed };
-    }, [sortedTasks]);
+    }, [sortedTasks, currentUser]);
 
     return (
         <div className="space-y-6 pb-12">
@@ -252,6 +372,8 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, users, currentUser, onAddT
                                         user={userMap.get(task.assignedToId)}
                                         onToggle={onToggleTask}
                                         onDelete={onDeleteTask}
+                                        onUpdateTask={onUpdateTask}
+                                        currentUser={currentUser}
                                     />
                                 ))
                             ) : (
@@ -299,6 +421,8 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, users, currentUser, onAddT
                                                 user={userMap.get(task.assignedToId)}
                                                 onToggle={onToggleTask}
                                                 onDelete={onDeleteTask}
+                                                onUpdateTask={onUpdateTask}
+                                                currentUser={currentUser}
                                             />
                                         ))
                                     ) : (

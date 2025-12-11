@@ -82,6 +82,10 @@ export interface Lead {
   bookedProject?: string;
   bookedUnitNumber?: string;
   bookedUnitId?: string;
+  
+  // Contact Details (for Contacted status)
+  contactDate?: string; // ISO date string
+  contactDuration?: number; // in minutes
 }
 
 export interface Activity {
@@ -117,6 +121,7 @@ export interface Task {
     createdBy: string;
     reminderDate?: string; // ISO Date string for when the notification should fire
     hasReminded?: boolean; // Flag to check if notification has already been sent
+    remarks?: string; // Remarks/comments for the task
 }
 
 export interface Notification {

@@ -31,16 +31,33 @@ const parseDate = (dateStr: string | undefined): string | undefined => {
     return undefined;
 };
 
+// Generate a deterministic UUID-like ID from a string (for consistent IDs across sessions)
+function generateIdFromName(name: string, role: string): string {
+    // Create a simple hash from name and role for deterministic IDs
+    const str = `${role}-${name}`;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    // Generate a UUID-like string (not a real UUID, but deterministic)
+    const hex = Math.abs(hash).toString(16).padStart(8, '0');
+    return `${hex.substring(0, 8)}-${hex.substring(0, 4)}-${hex.substring(0, 4)}-${hex.substring(0, 4)}-${hex.substring(0, 12)}`;
+}
+
 const seedData = (): DatabaseSchema => {
+    // Use deterministic IDs based on name/role instead of hardcoded user-1, admin-0, etc.
+    // These will be replaced with Supabase UUIDs when users are synced
     const users: User[] = [
-        { id: 'admin-0', name: 'Admin', role: 'Admin', avatarUrl: 'https://i.pravatar.cc/40?u=admin' },
-        { id: 'user-1', name: 'Amit Naithani', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=amit' },
-        { id: 'user-2', name: 'Neeraj Tripathi', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=neeraj' },
-        { id: 'user-3', name: 'Pinki Sahu', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=pinki' },
-        { id: 'user-4', name: 'Sher Singh', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=sher' },
-        { id: 'user-5', name: 'Umakant Sharma', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=umakant' },
-        { id: 'user-6', name: 'Vimal Shrivastav', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=vimal' },
-        { id: 'user-7', name: 'Parth Das', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=parth' },
+        { id: generateIdFromName('Admin', 'Admin'), name: 'Admin', role: 'Admin', avatarUrl: 'https://i.pravatar.cc/40?u=admin' },
+        { id: generateIdFromName('Amit Naithani', 'Salesperson'), name: 'Amit Naithani', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=amit' },
+        { id: generateIdFromName('Neeraj Tripathi', 'Salesperson'), name: 'Neeraj Tripathi', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=neeraj' },
+        { id: generateIdFromName('Pinki Sahu', 'Salesperson'), name: 'Pinki Sahu', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=pinki' },
+        { id: generateIdFromName('Sher Singh', 'Salesperson'), name: 'Sher Singh', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=sher' },
+        { id: generateIdFromName('Umakant Sharma', 'Salesperson'), name: 'Umakant Sharma', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=umakant' },
+        { id: generateIdFromName('Vimal Shrivastav', 'Salesperson'), name: 'Vimal Shrivastav', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=vimal' },
+        { id: generateIdFromName('Parth Das', 'Salesperson'), name: 'Parth Das', role: 'Salesperson', avatarUrl: 'https://i.pravatar.cc/40?u=parth' },
     ];
 
     const salespersonNameMap = new Map(users.map(u => [u.name.toLowerCase(), u.id]));
@@ -112,9 +129,28 @@ const seedData = (): DatabaseSchema => {
         });
     });
 
+    // Find users by name instead of hardcoded IDs
+    const amitUser = users.find(u => u.name === 'Amit Naithani');
+    const adminUser = users.find(u => u.role === 'Admin');
+    
     const tasks: Task[] = [
-        { id: 'task-1', title: 'Follow up with Mithlesh Tiwari', assignedToId: 'user-1', dueDate: new Date().toISOString(), isCompleted: false, createdBy: 'Admin', hasReminded: true },
-        { id: 'task-2', title: 'Prepare report for October leads', assignedToId: 'admin-0', dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, createdBy: 'Admin' },
+        { 
+            id: 'task-1', 
+            title: 'Follow up with Mithlesh Tiwari', 
+            assignedToId: amitUser?.id || users[1]?.id || '', 
+            dueDate: new Date().toISOString(), 
+            isCompleted: false, 
+            createdBy: 'Admin', 
+            hasReminded: true 
+        },
+        { 
+            id: 'task-2', 
+            title: 'Prepare report for October leads', 
+            assignedToId: adminUser?.id || users[0]?.id || '', 
+            dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), 
+            isCompleted: false, 
+            createdBy: 'Admin' 
+        },
     ];
 
     const salesTargets: SalesTarget[] = users.filter(u => u.role === 'Salesperson').map(u => ({
@@ -153,6 +189,65 @@ class DatabaseService {
         }
     }
 
+    // Method to update user IDs from local IDs to Supabase UUIDs
+    async updateUserIds(userIdMap: Map<string, string>) {
+        if (userIdMap.size === 0) return;
+
+        // Update users
+        this.data.users = this.data.users.map(user => {
+            const newId = userIdMap.get(user.id);
+            if (newId && newId !== user.id) {
+                return { ...user, id: newId };
+            }
+            return user;
+        });
+
+        // Update leads
+        this.data.leads = this.data.leads.map(lead => {
+            if (lead.assignedSalespersonId) {
+                const newId = userIdMap.get(lead.assignedSalespersonId);
+                if (newId) {
+                    return { ...lead, assignedSalespersonId: newId };
+                }
+            }
+            return lead;
+        });
+
+        // Update activities
+        this.data.activities = this.data.activities.map(activity => {
+            if (activity.salespersonId) {
+                const newId = userIdMap.get(activity.salespersonId);
+                if (newId) {
+                    return { ...activity, salespersonId: newId };
+                }
+            }
+            return activity;
+        });
+
+        // Update tasks
+        this.data.tasks = this.data.tasks.map(task => {
+            if (task.assignedToId) {
+                const newId = userIdMap.get(task.assignedToId);
+                if (newId) {
+                    return { ...task, assignedToId: newId };
+                }
+            }
+            return task;
+        });
+
+        // Update sales targets
+        this.data.salesTargets = this.data.salesTargets.map(target => {
+            const newId = userIdMap.get(target.salespersonId);
+            if (newId) {
+                return { ...target, salespersonId: newId };
+            }
+            return target;
+        });
+
+        this.save();
+        console.log('✅ Updated all user ID references in local database');
+    }
+
     private save() {
         localStorage.setItem(DB_KEY, JSON.stringify(this.data));
     }
@@ -163,6 +258,16 @@ class DatabaseService {
         // Simulate network latency
         await new Promise(resolve => setTimeout(resolve, 600));
         return { ...this.data };
+    }
+
+    async saveAllData(data: Partial<DatabaseSchema>) {
+        if (data.leads) this.data.leads = data.leads;
+        if (data.users) this.data.users = data.users;
+        if (data.activities) this.data.activities = data.activities;
+        if (data.inventory) this.data.inventory = data.inventory;
+        if (data.tasks) this.data.tasks = data.tasks;
+        if (data.salesTargets) this.data.salesTargets = data.salesTargets;
+        this.save();
     }
 
     async getLeads() {
@@ -194,6 +299,13 @@ class DatabaseService {
         this.save();
     }
 
+    async deleteLead(leadId: string) {
+        this.data.leads = this.data.leads.filter(l => l.id !== leadId);
+        // Also remove associated activities
+        this.data.activities = this.data.activities.filter(a => a.leadId !== leadId);
+        this.save();
+    }
+
     async addActivity(activity: Activity) {
         this.data.activities.unshift(activity);
         // Update lead's last activity
@@ -204,6 +316,11 @@ class DatabaseService {
         }
         this.save();
         return activity;
+    }
+
+    async deleteActivity(activityId: string) {
+        this.data.activities = this.data.activities.filter(a => a.id !== activityId);
+        this.save();
     }
 
     async getInventory() {
@@ -273,6 +390,15 @@ class DatabaseService {
             task.isCompleted = !task.isCompleted;
             this.save();
         }
+    }
+
+    async updateTask(updatedTask: Task) {
+        const index = this.data.tasks.findIndex(t => t.id === updatedTask.id);
+        if (index !== -1) {
+            this.data.tasks[index] = updatedTask;
+            this.save();
+        }
+        return updatedTask;
     }
 
     async deleteTask(taskId: string) {

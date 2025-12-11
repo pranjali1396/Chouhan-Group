@@ -43,10 +43,10 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     message: 'CRM Backend is running!',
-    timestamp: new Date().toISOString() 
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -74,6 +74,20 @@ app.get('/api/v1/leads', async (req, res) => {
         .from('leads')
         .select('*')
         .order('lead_date', { ascending: false });
+      
+      // Debug: Log assigned leads
+      if (data && data.length > 0) {
+        const assignedLeads = data.filter(l => l.assigned_salesperson_id);
+        console.log(`📥 [GET LEADS] Fetched ${data.length} leads from Supabase`);
+        console.log(`   Assigned leads: ${assignedLeads.length}`);
+        if (assignedLeads.length > 0) {
+          console.log(`   Assigned lead IDs:`, assignedLeads.map(l => ({ 
+            id: l.id, 
+            customer: l.customer_name, 
+            assignedTo: l.assigned_salesperson_id 
+          })));
+        }
+      }
 
       if (error) {
         console.error('Error fetching leads from Supabase:', error);
@@ -94,7 +108,7 @@ app.get('/api/v1/leads', async (req, res) => {
           mobile: row.mobile || '',
           email: row.email || '',
           status: normalizedStatus,
-          assignedSalespersonId: row.assigned_salesperson_id || null,
+          assignedSalespersonId: row.assigned_salesperson_id || null, // Preserve actual value from database
           leadDate: row.lead_date || new Date().toISOString(),
           lastActivityDate: row.last_activity_date || row.lead_date || new Date().toISOString(),
           month:
@@ -177,14 +191,6 @@ app.get('/api/v1/leads', async (req, res) => {
 // Update lead (e.g. status, next follow-up, temperature)
 app.put('/api/v1/leads/:id', async (req, res) => {
   try {
-    if (!supabase) {
-      return res.status(500).json({
-        success: false,
-        error: 'Database not configured',
-        message: 'Supabase client is not initialized on the backend'
-      });
-    }
-
     const { id } = req.params;
     const payload = req.body || {};
 
@@ -195,64 +201,344 @@ app.put('/api/v1/leads/:id', async (req, res) => {
       visit_status: payload.visitStatus || null,
       visit_date: payload.visitDate || null,
       last_remark: payload.lastRemark || payload.remarks || null,
-      assigned_salesperson_id: payload.assignedSalespersonId || null,
+      // IMPORTANT: Preserve assigned_salesperson_id value - use null only if explicitly null/undefined
+      // If it's an empty string, we should keep it as null (unassigned)
+      assigned_salesperson_id: payload.assignedSalespersonId && payload.assignedSalespersonId !== '' 
+        ? payload.assignedSalespersonId 
+        : null,
       booking_status: payload.bookingStatus || null,
       // booked_project / booked_unit_* are not in current Supabase schema, so we skip them here
       is_read: payload.isRead ?? false,
       last_activity_date: new Date().toISOString()
     };
-
-    // Remove undefined keys so we don't overwrite with null accidentally
-    Object.keys(updateData).forEach(
-      key => updateData[key] === undefined && delete updateData[key]
-    );
-
-    // Get current lead to check previous assignment
-    const { data: currentLead } = await supabase
-      .from('leads')
-      .select('assigned_salesperson_id')
-      .eq('id', id)
-      .single();
     
-    const previousAssigneeId = currentLead?.assigned_salesperson_id || null;
-    const newAssigneeId = updateData.assigned_salesperson_id || null;
-
-    const { data, error } = await supabase
-      .from('leads')
-      .update(updateData)
-      .eq('id', id)
-      .select('*')
-      .single();
-
-    if (error) {
-      console.error('Error updating lead in Supabase:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to update lead',
-        message: error.message
+    // Debug: Log assignment updates
+    if (payload.assignedSalespersonId !== undefined) {
+      console.log(`📝 Updating lead ${id} assignment:`, {
+        oldValue: 'checking...',
+        newValue: payload.assignedSalespersonId,
+        willSetTo: updateData.assigned_salesperson_id
       });
     }
 
-    // Create notification if lead was assigned to someone
-    if (newAssigneeId && newAssigneeId !== previousAssigneeId) {
+    // CRITICAL: Always include assigned_salesperson_id if it's in the payload
+    // Don't remove it even if it's null (null means unassign)
+    if (payload.assignedSalespersonId !== undefined) {
+      // Ensure it's in updateData (it should already be, but double-check)
+      updateData.assigned_salesperson_id = payload.assignedSalespersonId && payload.assignedSalespersonId !== '' 
+        ? payload.assignedSalespersonId 
+        : null;
+      console.log(`📝 [UPDATE LEAD] Lead ${id}:`, {
+        receivedAssignedId: payload.assignedSalespersonId,
+        receivedType: typeof payload.assignedSalespersonId,
+        willUpdateTo: updateData.assigned_salesperson_id,
+        updateDataKeys: Object.keys(updateData),
+        updateDataHasAssigned: 'assigned_salesperson_id' in updateData
+      });
+    } else {
+      console.log(`📝 [UPDATE LEAD] Lead ${id}: assignedSalespersonId NOT in payload (will not update assignment)`);
+    }
+
+    // Remove undefined keys (but keep null values - they're intentional)
+    Object.keys(updateData).forEach(
+      key => updateData[key] === undefined && delete updateData[key]
+    );
+    
+    // Final check: ensure assigned_salesperson_id is in updateData if it was in payload
+    if (payload.assignedSalespersonId !== undefined && !('assigned_salesperson_id' in updateData)) {
+      console.error(`❌ CRITICAL: assigned_salesperson_id was removed from updateData! Re-adding it.`);
+      updateData.assigned_salesperson_id = payload.assignedSalespersonId && payload.assignedSalespersonId !== '' 
+        ? payload.assignedSalespersonId 
+        : null;
+    }
+
+    let updatedLead = null;
+    let previousAssigneeId = null;
+    let newAssigneeId = updateData.assigned_salesperson_id || null;
+
+    // 1. Try to update in Supabase
+    if (supabase) {
+      // Validate and resolve user ID if trying to assign
+      if (updateData.assigned_salesperson_id && updateData.assigned_salesperson_id !== null) {
+        let resolvedUserId = updateData.assigned_salesperson_id;
+        
+        // Check if it's a local ID (like user-1, admin-0) or a UUID
+        const isLocalId = /^(user-|admin-)\d+$/.test(updateData.assigned_salesperson_id);
+        
+        if (isLocalId) {
+          // Try to find user by local_id column first (if it exists)
+          let userByLocalId = null;
+          try {
+            const { data } = await supabase
+              .from('users')
+              .select('id, name, local_id')
+              .eq('local_id', updateData.assigned_salesperson_id)
+              .maybeSingle();
+            userByLocalId = data;
+          } catch (err) {
+            // local_id column might not exist, that's ok
+            console.log('   local_id column may not exist, will try name-based lookup');
+          }
+          
+          if (userByLocalId) {
+            resolvedUserId = userByLocalId.id;
+            console.log(`✅ Mapped local ID ${updateData.assigned_salesperson_id} to Supabase UUID ${resolvedUserId}`);
+          } else {
+            // Fallback: Try to get user name from payload or look up by common patterns
+            // Since we don't have user name in payload, we need to sync users first
+            // For now, return a helpful error with instructions
+            return res.status(400).json({
+              success: false,
+              error: 'User not found',
+              message: `The user ID "${updateData.assigned_salesperson_id}" is a local ID that hasn't been synced to Supabase.`,
+              solution: 'Please sync your users to Supabase first. You can do this by:',
+              steps: [
+                '1. Call POST /api/v1/users/sync with your users array',
+                '2. Or add a local_id column to your users table in Supabase',
+                '3. Then sync users again to populate the mapping'
+              ],
+              sqlMigration: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS local_id VARCHAR(50);'
+            });
+          }
+        } else {
+          // It's a UUID, verify it exists
+          const { data: userExists, error: userCheckError } = await supabase
+            .from('users')
+            .select('id, name')
+            .eq('id', updateData.assigned_salesperson_id)
+            .single();
+          
+          if (userCheckError || !userExists) {
+            console.error(`❌ User ${updateData.assigned_salesperson_id} not found in users table`);
+            console.error('   Error:', userCheckError?.message);
+            return res.status(400).json({
+              success: false,
+              error: 'Invalid user assignment',
+              message: `The selected salesperson (ID: ${updateData.assigned_salesperson_id}) does not exist in the system. Please select a valid user.`
+            });
+          }
+          resolvedUserId = userExists.id;
+          console.log(`✅ Verified user exists: ${userExists.name} (${resolvedUserId})`);
+        }
+        
+        // Update the assignment with the resolved UUID
+        updateData.assigned_salesperson_id = resolvedUserId;
+        newAssigneeId = resolvedUserId;
+      }
+
+      // Get current lead to check previous assignment and verify it exists
+      const { data: currentLead, error: fetchError } = await supabase
+        .from('leads')
+        .select('assigned_salesperson_id, customer_name')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !currentLead) {
+        console.error(`❌ Lead ${id} not found in Supabase:`, fetchError?.message);
+        console.error(`   Error code: ${fetchError?.code}, Error hint: ${fetchError?.hint}`);
+        // Check if lead exists in in-memory storage
+        const inMemoryLead = receivedLeads.find(l => l.id === id);
+        if (inMemoryLead) {
+          console.log(`   ⚠️ Lead found in in-memory storage, will update there`);
+          previousAssigneeId = inMemoryLead.assignedSalespersonId || null;
+        } else {
+          console.error(`   ❌ Lead ${id} not found in Supabase OR in-memory storage`);
+          return res.status(404).json({
+            success: false,
+            error: 'Lead not found',
+            message: `Lead with id ${id} could not be found in the database.`
+          });
+        }
+        // Will fall back to in-memory update below
+      } else {
+        previousAssigneeId = currentLead.assigned_salesperson_id || null;
+      
+        if (updateData.assigned_salesperson_id) {
+          console.log(`🔄 [ASSIGNMENT] Lead ${id} (${currentLead.customer_name || 'Unknown'}):`, {
+            previousAssignee: previousAssigneeId,
+            newAssignee: updateData.assigned_salesperson_id,
+            willChange: previousAssigneeId !== updateData.assigned_salesperson_id
+          });
+        }
+
+        console.log(`🔄 [SUPABASE UPDATE] Attempting to update lead ${id} with:`, JSON.stringify(updateData, null, 2));
+        console.log(`   Update includes assigned_salesperson_id: ${'assigned_salesperson_id' in updateData}`);
+        if ('assigned_salesperson_id' in updateData) {
+          console.log(`   assigned_salesperson_id value: ${updateData.assigned_salesperson_id} (type: ${typeof updateData.assigned_salesperson_id})`);
+        }
+        
+        const { data, error } = await supabase
+          .from('leads')
+          .update(updateData)
+          .eq('id', id)
+          .select('*')
+          .single();
+        
+        // Log the response immediately
+        if (data) {
+          console.log(`✅ Supabase update response received for lead ${id}`);
+          console.log(`   Response assigned_salesperson_id: ${data.assigned_salesperson_id} (type: ${typeof data.assigned_salesperson_id})`);
+        }
+
+        if (error) {
+          console.error('❌ Error updating lead in Supabase:', error.message);
+          console.error('   Error code:', error.code);
+          console.error('   Error details:', JSON.stringify(error, null, 2));
+          console.error('   Update data that failed:', JSON.stringify(updateData, null, 2));
+          
+          // Check for foreign key constraint violation
+          if (error.code === '23503' || error.message?.includes('foreign key') || error.message?.includes('violates foreign key constraint')) {
+            return res.status(400).json({
+              success: false,
+              error: 'Invalid user assignment',
+              message: `Failed to assign lead: The selected salesperson does not exist in the system. Please select a valid user.`,
+              details: error.message
+            });
+          }
+          
+          // Return other Supabase errors with clear message
+          return res.status(500).json({
+            success: false,
+            error: 'Failed to update lead',
+            message: error.message || 'An error occurred while updating the lead in the database.',
+            details: error.code ? `Error code: ${error.code}` : undefined
+          });
+        } else {
+          updatedLead = data;
+          // Log assignment for debugging
+          if (updateData.assigned_salesperson_id) {
+            console.log(`✅ Lead ${id} assigned to user ${updateData.assigned_salesperson_id} in Supabase`);
+            console.log(`   Customer: ${updatedLead.customer_name || 'Unknown'}`);
+            console.log(`   Assigned ID in DB after update: ${updatedLead.assigned_salesperson_id}`);
+            
+            // CRITICAL: Verify the assignment was actually saved
+            const assignmentMatches = updatedLead.assigned_salesperson_id === updateData.assigned_salesperson_id;
+            console.log(`   ✅ Assignment verification: ${assignmentMatches ? 'SUCCESS' : 'FAILED - MISMATCH!'}`);
+            
+            if (!assignmentMatches) {
+              console.error(`   ❌ CRITICAL: Assignment mismatch! Expected: ${updateData.assigned_salesperson_id}, Got: ${updatedLead.assigned_salesperson_id}`);
+              // Don't create notification if assignment didn't actually save
+              updatedLead = null; // This will prevent notification creation
+            } else {
+              // Verify by fetching again to be absolutely sure
+              const { data: verifyData, error: verifyError } = await supabase
+                .from('leads')
+                .select('assigned_salesperson_id, customer_name')
+                .eq('id', id)
+                .single();
+              
+              if (verifyError) {
+                console.error(`   ❌ Verification fetch failed: ${verifyError.message}`);
+                updatedLead = null; // Prevent notification if we can't verify
+              } else {
+                console.log(`   🔍 Verification fetch: assigned_salesperson_id = ${verifyData?.assigned_salesperson_id}`);
+                if (verifyData?.assigned_salesperson_id !== updateData.assigned_salesperson_id) {
+                  console.error(`   ❌ Verification failed! DB has: ${verifyData?.assigned_salesperson_id}, expected: ${updateData.assigned_salesperson_id}`);
+                  updatedLead = null; // Prevent notification
+                }
+              }
+            }
+          } else if (updateData.assigned_salesperson_id === null) {
+            console.log(`🔄 Lead ${id} unassigned (assigned_salesperson_id set to null)`);
+            console.log(`   Current value in DB: ${updatedLead.assigned_salesperson_id}`);
+          }
+        }
+      }
+    }
+
+    // 2. Fallback / Sync to In-Memory
+    // Always update in-memory to keep local state in sync (or as primary if no Supabase)
+    const leadIndex = receivedLeads.findIndex(l => l.id === id);
+    if (leadIndex !== -1) {
+      const currentLead = receivedLeads[leadIndex];
+      if (!supabase) {
+        previousAssigneeId = currentLead.assignedSalespersonId || null;
+      }
+
+      // Update in-memory lead
+      const updatedMemLead = { ...currentLead };
+
+      if (payload.status) updatedMemLead.status = payload.status;
+      if (payload.nextFollowUpDate !== undefined) updatedMemLead.nextFollowUpDate = payload.nextFollowUpDate;
+      if (payload.temperature !== undefined) updatedMemLead.temperature = payload.temperature;
+      if (payload.visitStatus !== undefined) updatedMemLead.visitStatus = payload.visitStatus;
+      if (payload.visitDate !== undefined) updatedMemLead.visitDate = payload.visitDate;
+      if (payload.lastRemark || payload.remarks) updatedMemLead.lastRemark = payload.lastRemark || payload.remarks;
+      if (payload.assignedSalespersonId !== undefined) updatedMemLead.assignedSalespersonId = payload.assignedSalespersonId;
+      if (payload.bookingStatus !== undefined) updatedMemLead.bookingStatus = payload.bookingStatus;
+      if (payload.isRead !== undefined) updatedMemLead.isRead = payload.isRead;
+      updatedMemLead.lastActivityDate = new Date().toISOString();
+
+      receivedLeads[leadIndex] = updatedMemLead;
+
+      // If no Supabase or Supabase update failed, use this as our result
+      if (!supabase || !updatedLead) {
+        updatedLead = {
+          id: updatedMemLead.id,
+          customer_name: updatedMemLead.customerName,
+          mobile: updatedMemLead.mobile,
+          email: updatedMemLead.email,
+          status: updatedMemLead.status,
+          assigned_salesperson_id: updatedMemLead.assignedSalespersonId,
+          lead_date: updatedMemLead.leadDate,
+          last_activity_date: updatedMemLead.lastActivityDate,
+          month: updatedMemLead.month,
+          mode_of_enquiry: updatedMemLead.modeOfEnquiry,
+          occupation: updatedMemLead.occupation,
+          interested_project: updatedMemLead.interestedProject,
+          interested_unit: updatedMemLead.interestedUnit,
+          temperature: updatedMemLead.temperature,
+          visit_status: updatedMemLead.visitStatus,
+          visit_date: updatedMemLead.visitDate,
+          next_follow_up_date: updatedMemLead.nextFollowUpDate,
+          last_remark: updatedMemLead.lastRemark,
+          booking_status: updatedMemLead.bookingStatus,
+          is_read: updatedMemLead.isRead,
+          missed_visits_count: updatedMemLead.missedVisitsCount,
+          labels: updatedMemLead.labels,
+          budget: updatedMemLead.budget,
+          purpose: updatedMemLead.purpose,
+          city: updatedMemLead.city,
+          platform: updatedMemLead.platform,
+          source_website: updatedMemLead.source
+        };
+      }
+    } else if (!supabase) {
+      // Not in memory and not in Supabase
+      return res.status(404).json({
+        success: false,
+        error: 'Lead not found in local memory'
+      });
+    }
+
+    // Create notification if lead was assigned AND update was successful
+    // Only create notification if we have a valid updatedLead (meaning update succeeded)
+    // AND the assignment actually matches what we tried to set
+    const assignmentVerified = updatedLead && 
+                               newAssigneeId && 
+                               newAssigneeId !== previousAssigneeId &&
+                               updatedLead.assigned_salesperson_id === newAssigneeId;
+    
+    if (assignmentVerified) {
+      const customerName = updatedLead.customer_name || 'Unknown';
       const notificationId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const notification = {
         id: notificationId,
         type: 'lead_assigned',
-        message: `Lead assigned: ${data.customer_name || 'Unknown'}`,
+        message: `Lead assigned: ${customerName}`,
         leadId: id,
         leadData: {
-          customerName: data.customer_name || '',
-          mobile: data.mobile || '',
-          email: data.email || '',
-          interestedProject: data.interested_project || '',
-          status: data.status || 'New Lead'
+          customerName: customerName,
+          mobile: updatedLead.mobile || '',
+          email: updatedLead.email || '',
+          interestedProject: updatedLead.interested_project || '',
+          status: updatedLead.status || 'New Lead'
         },
         targetUserId: newAssigneeId, // Notify assigned user
         createdAt: new Date().toISOString(),
         isRead: false
       };
-      
+
       // Save to Supabase if available
       if (supabase) {
         try {
@@ -269,13 +555,14 @@ app.put('/api/v1/leads/:id', async (req, res) => {
               created_at: notification.createdAt,
               is_read: false
             });
-          
+
           if (supabaseError) {
             console.error('❌ Error saving assignment notification to Supabase:', supabaseError);
             // Fallback to in-memory
             notifications.push(notification);
           } else {
             console.log(`🔔 Notification saved to Supabase for lead assignment to user ${newAssigneeId}`);
+            console.log(`   Lead ID: ${id}, Customer: ${customerName}`);
           }
         } catch (error) {
           console.error('❌ Error saving assignment notification:', error);
@@ -287,9 +574,65 @@ app.put('/api/v1/leads/:id', async (req, res) => {
         notifications.push(notification);
         console.log(`🔔 Notification created (in-memory) for lead assignment to user ${newAssigneeId}`);
       }
+    } else if (newAssigneeId && newAssigneeId !== previousAssigneeId) {
+      // Assignment was attempted but something went wrong
+      if (!updatedLead) {
+        console.warn(`⚠️ Assignment notification NOT created - lead update failed for lead ${id}`);
+        console.warn(`   Attempted to assign to: ${newAssigneeId}, but updatedLead is null`);
+      } else if (updatedLead.assigned_salesperson_id !== newAssigneeId) {
+        console.warn(`⚠️ Assignment notification NOT created - assignment mismatch for lead ${id}`);
+        console.warn(`   Attempted to assign to: ${newAssigneeId}`);
+        console.warn(`   But lead has assigned_salesperson_id: ${updatedLead.assigned_salesperson_id}`);
+      }
     }
 
-    const row = data;
+    // Ensure we have a lead to return
+    if (!updatedLead) {
+      // Final check: is the lead in in-memory storage?
+      const inMemoryLead = receivedLeads.find(l => l.id === id);
+      if (inMemoryLead) {
+        console.log(`⚠️ Using in-memory lead ${id} as fallback (Supabase update failed or lead not in Supabase)`);
+        // Convert in-memory lead to database format
+        updatedLead = {
+          id: inMemoryLead.id,
+          customer_name: inMemoryLead.customerName,
+          mobile: inMemoryLead.mobile,
+          email: inMemoryLead.email,
+          status: inMemoryLead.status,
+          assigned_salesperson_id: inMemoryLead.assignedSalespersonId,
+          lead_date: inMemoryLead.leadDate,
+          last_activity_date: inMemoryLead.lastActivityDate,
+          month: inMemoryLead.month,
+          mode_of_enquiry: inMemoryLead.modeOfEnquiry,
+          occupation: inMemoryLead.occupation,
+          interested_project: inMemoryLead.interestedProject,
+          interested_unit: inMemoryLead.interestedUnit,
+          temperature: inMemoryLead.temperature,
+          visit_status: inMemoryLead.visitStatus,
+          visit_date: inMemoryLead.visitDate,
+          next_follow_up_date: inMemoryLead.nextFollowUpDate,
+          last_remark: inMemoryLead.lastRemark,
+          booking_status: inMemoryLead.bookingStatus,
+          is_read: inMemoryLead.isRead,
+          missed_visits_count: inMemoryLead.missedVisitsCount,
+          labels: inMemoryLead.labels,
+          budget: inMemoryLead.budget,
+          purpose: inMemoryLead.purpose,
+          city: inMemoryLead.city,
+          platform: inMemoryLead.platform,
+          source_website: inMemoryLead.source
+        };
+      } else {
+        console.error(`❌ Lead ${id} not found in Supabase or in-memory storage`);
+        return res.status(404).json({
+          success: false,
+          error: 'Lead not found',
+          message: `Lead with id ${id} could not be found or updated. The lead may not exist in the database.`
+        });
+      }
+    }
+
+    const row = updatedLead;
     const rawStatus = row.status || 'New Lead';
     const normalizedStatus = rawStatus === 'New' ? 'New Lead' : rawStatus;
 
@@ -299,7 +642,7 @@ app.put('/api/v1/leads/:id', async (req, res) => {
       mobile: row.mobile || '',
       email: row.email || '',
       status: normalizedStatus,
-      assignedSalespersonId: row.assigned_salesperson_id || null,
+      assignedSalespersonId: row.assigned_salesperson_id || null, // Preserve actual value from database (null if not assigned)
       leadDate: row.lead_date || new Date().toISOString(),
       lastActivityDate: row.last_activity_date || row.lead_date || new Date().toISOString(),
       month:
@@ -346,7 +689,7 @@ app.put('/api/v1/leads/:id', async (req, res) => {
 app.post('/api/v1/webhooks/lead', async (req, res) => {
   try {
     const leadData = req.body;
-    
+
     // Log the received data
     console.log('\n✅ ===== LEAD RECEIVED FROM WEBSITE =====');
     console.log('📋 Lead Data:', JSON.stringify(leadData, null, 2));
@@ -380,7 +723,7 @@ app.post('/api/v1/webhooks/lead', async (req, res) => {
     // Set source to "website" for all website leads (webhook endpoint means it's from website)
     // This ensures all leads from website can be filtered by source="website"
     leadData.source = 'website';
-    
+
     // Set modeOfEnquiry to "Website" for all website leads
     leadData.modeOfEnquiry = 'Website';
 
@@ -435,7 +778,7 @@ app.post('/api/v1/webhooks/lead', async (req, res) => {
 
     // Also store in memory (temporary - for current frontend testing / fallback)
     const leadId = supabaseLeadId || `lead-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const storedLead = {
       ...leadData,
       id: leadId,
@@ -447,7 +790,7 @@ app.post('/api/v1/webhooks/lead', async (req, res) => {
       visitStatus: 'No'
     };
     receivedLeads.push(storedLead);
-    
+
     console.log(`💾 Lead stored in memory. Total in-memory leads: ${receivedLeads.length}`);
 
     // Create notification for admin users about new lead
@@ -469,7 +812,7 @@ app.post('/api/v1/webhooks/lead', async (req, res) => {
       createdAt: now.toISOString(),
       isRead: false
     };
-    
+
     // Save to Supabase if available
     if (supabase) {
       try {
@@ -486,7 +829,7 @@ app.post('/api/v1/webhooks/lead', async (req, res) => {
             created_at: now.toISOString(),
             is_read: false
           });
-        
+
         if (supabaseError) {
           console.error('❌ Error saving notification to Supabase:', supabaseError);
           // Fallback to in-memory
@@ -538,9 +881,9 @@ app.get('/api/v1/notifications', async (req, res) => {
   try {
     const { userId, role, lastChecked } = req.query;
     console.log('📬 GET /api/v1/notifications - userId:', userId, 'role:', role, 'lastChecked:', lastChecked);
-    
+
     let allNotifications = [];
-    
+
     // Try to fetch from Supabase first
     if (supabase) {
       try {
@@ -548,21 +891,21 @@ app.get('/api/v1/notifications', async (req, res) => {
           .from('notifications')
           .select('*')
           .order('created_at', { ascending: false });
-        
+
         // Filter by role
         if (role === 'Admin') {
           query = query.or('target_role.eq.Admin,target_role.is.null');
         } else {
           query = query.eq('target_user_id', userId);
         }
-        
+
         // Filter by lastChecked if provided
         if (lastChecked) {
           query = query.gt('created_at', lastChecked);
         }
-        
+
         const { data, error } = await query;
-        
+
         if (error) {
           console.error('❌ Error fetching notifications from Supabase:', error);
           // Fallback to in-memory
@@ -592,36 +935,36 @@ app.get('/api/v1/notifications', async (req, res) => {
       allNotifications = notifications;
       console.log('📋 Using in-memory notifications:', allNotifications.length);
     }
-    
+
     const lastCheckedDate = lastChecked ? new Date(lastChecked) : new Date(0);
-    
+
     // Filter notifications based on user role and ID
     let filteredNotifications = allNotifications.filter(notif => {
       // Check if notification is newer than lastChecked (only if lastChecked is provided)
       if (lastChecked && new Date(notif.createdAt) <= lastCheckedDate) {
         return false;
       }
-      
+
       // Admin users see all admin notifications
       if (role === 'Admin') {
         return notif.targetRole === 'Admin' || !notif.targetRole;
       }
-      
+
       // Regular users see only their assigned notifications
       if (notif.targetUserId) {
         return notif.targetUserId === userId;
       }
-      
+
       return false;
     });
-    
+
     // Sort by newest first
-    filteredNotifications.sort((a, b) => 
+    filteredNotifications.sort((a, b) =>
       new Date(b.createdAt) - new Date(a.createdAt)
     );
-    
+
     console.log('✅ Returning', filteredNotifications.length, 'notifications');
-    
+
     res.json({
       success: true,
       notifications: filteredNotifications,
@@ -641,7 +984,7 @@ app.get('/api/v1/notifications', async (req, res) => {
 app.post('/api/v1/notifications/:id/read', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Update in Supabase if available
     if (supabase) {
       const { data, error } = await supabase
@@ -650,7 +993,7 @@ app.post('/api/v1/notifications/:id/read', async (req, res) => {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) {
         console.error('❌ Error updating notification in Supabase:', error);
         // Fallback to in-memory
@@ -675,7 +1018,7 @@ app.post('/api/v1/notifications/:id/read', async (req, res) => {
         return res.json({ success: true, notification });
       }
     }
-    
+
     // Fallback to in-memory
     const notification = notifications.find(n => n.id === id);
     if (notification) {
@@ -698,14 +1041,14 @@ app.post('/api/v1/notifications/:id/read', async (req, res) => {
 app.delete('/api/v1/notifications/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Delete from Supabase if available
     if (supabase) {
       const { error } = await supabase
         .from('notifications')
         .delete()
         .eq('id', id);
-      
+
       if (error) {
         console.error('❌ Error deleting notification from Supabase:', error);
         // Fallback to in-memory
@@ -719,7 +1062,7 @@ app.delete('/api/v1/notifications/:id', async (req, res) => {
         return res.json({ success: true, message: 'Notification deleted' });
       }
     }
-    
+
     // Fallback to in-memory
     const index = notifications.findIndex(n => n.id === id);
     if (index !== -1) {
@@ -743,7 +1086,7 @@ app.delete('/api/v1/leads/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.query; // Expect role to be passed as query param for admin check
-    
+
     // Check if user is admin
     if (role !== 'Admin') {
       return res.status(403).json({
@@ -752,14 +1095,14 @@ app.delete('/api/v1/leads/:id', async (req, res) => {
         message: 'Only admins can delete leads'
       });
     }
-    
+
     // Delete from Supabase if available
     if (supabase) {
       const { error } = await supabase
         .from('leads')
         .delete()
         .eq('id', id);
-      
+
       if (error) {
         console.error('❌ Error deleting lead from Supabase:', error);
         return res.status(500).json({
@@ -769,31 +1112,31 @@ app.delete('/api/v1/leads/:id', async (req, res) => {
         });
       } else {
         console.log(`🗑️ Lead ${id} deleted from Supabase by admin`);
-        
+
         // Also delete associated notifications
         await supabase
           .from('notifications')
           .delete()
           .eq('lead_id', id);
-        
+
         return res.json({ success: true, message: 'Lead deleted successfully' });
       }
     }
-    
+
     // Fallback: remove from in-memory leads
     const leadIndex = receivedLeads.findIndex(l => l.id === id);
     if (leadIndex !== -1) {
       receivedLeads.splice(leadIndex, 1);
     }
-    
+
     // Also remove associated notifications
     const notificationIndices = notifications
       .map((n, idx) => n.leadId === id ? idx : -1)
       .filter(idx => idx !== -1)
       .reverse(); // Reverse to delete from end to avoid index shifting
-    
+
     notificationIndices.forEach(idx => notifications.splice(idx, 1));
-    
+
     res.json({ success: true, message: 'Lead deleted successfully' });
   } catch (error) {
     console.error('❌ Error deleting lead:', error);
@@ -804,6 +1147,197 @@ app.delete('/api/v1/leads/:id', async (req, res) => {
     });
   }
 });
+
+// Get or create users endpoint
+app.get('/api/v1/users', async (req, res) => {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching users from Supabase:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to fetch users',
+          message: error.message
+        });
+      }
+
+      return res.json({
+        success: true,
+        users: (data || []).map(user => ({
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          avatarUrl: user.avatar_url || ''
+        }))
+      });
+    }
+
+    // Fallback: return empty array if no Supabase
+    res.json({
+      success: true,
+      users: []
+    });
+  } catch (error) {
+    console.error('Error getting users:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch users',
+      message: error.message
+    });
+  }
+});
+
+// Sync users endpoint - creates/updates users in Supabase
+app.post('/api/v1/users/sync', async (req, res) => {
+  try {
+    const { users } = req.body;
+
+    if (!users || !Array.isArray(users)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request',
+        message: 'users array is required'
+      });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({
+        success: false,
+        error: 'Supabase not configured',
+        message: 'Cannot sync users without Supabase connection'
+      });
+    }
+
+    const syncedUsers = [];
+    const errors = [];
+
+    for (const user of users) {
+      try {
+        // Check if user exists by name and role (since local IDs won't match UUIDs)
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id, name, role')
+          .eq('name', user.name)
+          .eq('role', user.role)
+          .single();
+
+        if (existingUser) {
+          // Update existing user (try to add local_id if column exists)
+          const updateData = {
+            name: user.name,
+            role: user.role,
+            avatar_url: user.avatarUrl || null
+          };
+          
+          // Try to update local_id if the column exists (won't fail if it doesn't)
+          try {
+            const { data: updated, error: updateError } = await supabase
+              .from('users')
+              .update(updateData)
+              .eq('id', existingUser.id)
+              .select()
+              .single();
+
+            if (updateError) throw updateError;
+            
+            // Try to set local_id separately (in case column exists but wasn't in update)
+            await supabase.rpc('set_local_id', { user_id: existingUser.id, local_id: user.id })
+              .catch(() => {}); // Ignore if function/column doesn't exist
+            
+            syncedUsers.push({ localId: user.id, supabaseId: existingUser.id, user: updated || existingUser });
+          } catch (err) {
+            // If update fails, try without local_id
+            const { data: updated, error: updateError } = await supabase
+              .from('users')
+              .update({
+                name: user.name,
+                role: user.role,
+                avatar_url: user.avatarUrl || null
+              })
+              .eq('id', existingUser.id)
+              .select()
+              .single();
+
+            if (updateError) throw updateError;
+            syncedUsers.push({ localId: user.id, supabaseId: existingUser.id, user: updated });
+          }
+        } else {
+          // Create new user with UUID
+          // Try to include local_id if column exists
+          const insertData = {
+            name: user.name,
+            role: user.role,
+            avatar_url: user.avatarUrl || null
+          };
+          
+          // Try to add local_id (will be ignored if column doesn't exist)
+          // We'll use a raw SQL query to handle this gracefully
+          try {
+            const { data: newUser, error: createError } = await supabase
+              .from('users')
+              .insert(insertData)
+              .select()
+              .single();
+
+            if (createError) throw createError;
+            
+            // Try to update local_id separately using RPC or direct update
+            // If local_id column exists, update it
+            try {
+              await supabase
+                .from('users')
+                .update({ local_id: user.id })
+                .eq('id', newUser.id);
+            } catch (localIdError) {
+              // local_id column doesn't exist, that's ok
+              console.log(`   Note: local_id column not found for user ${user.name}, skipping local_id mapping`);
+            }
+            
+            syncedUsers.push({ localId: user.id, supabaseId: newUser.id, user: newUser });
+          } catch (err) {
+            throw err;
+          }
+        }
+      } catch (error) {
+        console.error(`Error syncing user ${user.name}:`, error);
+        errors.push({ user: user.name, error: error.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      synced: syncedUsers.length,
+      errors: errors.length,
+      users: syncedUsers,
+      errorDetails: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Error syncing users:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to sync users',
+      message: error.message
+    });
+  }
+});
+
+// Helper function to get or create user in Supabase by local ID
+async function getOrCreateUserInSupabase(localUserId) {
+  if (!supabase) return null;
+
+  // First, try to find by a custom mapping (if we add a local_id column)
+  // For now, we'll need to map by name - but this is not ideal
+  // Better approach: store local_id mapping or sync users first
+  
+  // For immediate fix: return null and let the validation error show
+  // The proper fix is to sync users first
+  return null;
+}
 
 // Start server
 app.listen(PORT, () => {

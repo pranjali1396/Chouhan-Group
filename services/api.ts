@@ -46,7 +46,12 @@ class ApiService {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(error.error || `API Error: ${response.statusText}`);
+        // Extract error message from response
+        const errorMessage = error.message || error.error || `API Error: ${response.statusText}`;
+        const apiError: any = new Error(errorMessage);
+        apiError.status = response.status;
+        apiError.response = error;
+        throw apiError;
       }
 
       return response.json();
@@ -72,7 +77,8 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
-    return response.lead;
+    // Return the full response so frontend can check success and get the lead
+    return response;
   }
 
   // (updateLead removed as we reverted to local DB updates for now)
@@ -114,6 +120,25 @@ class ApiService {
     return this.request<{ success: boolean; message: string }>(`/leads/${leadId}?role=${role}`, {
       method: 'DELETE',
     });
+  }
+
+  // Users
+  async getUsers() {
+    try {
+      const response = await this.request<{ success: boolean; users: any[] }>('/users');
+      return response.users || [];
+    } catch (error) {
+      console.error('❌ Error fetching users:', error);
+      throw error;
+    }
+  }
+
+  async syncUsers(users: any[]) {
+    const response = await this.request<{ success: boolean; synced: number; users: any[] }>('/users/sync', {
+      method: 'POST',
+      body: JSON.stringify({ users }),
+    });
+    return response;
   }
 }
 

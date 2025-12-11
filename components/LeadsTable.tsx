@@ -99,6 +99,18 @@ const MobileLeadCard: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
                     <span className="text-xs text-slate-600 font-medium truncate">{lead.interestedProject}</span>
                 </div>
             )}
+            {lead.status === LeadStatus.Contacted && lead.contactDate && (
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <span className="font-semibold">Contacted:</span>
+                    <span>{new Date(lead.contactDate).toLocaleDateString()}</span>
+                    {lead.contactDuration && (
+                        <>
+                            <span className="text-slate-400">•</span>
+                            <span>{lead.contactDuration} min</span>
+                        </>
+                    )}
+                </div>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
                 {lead.source && (
                     <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-semibold">{lead.source}</span>
@@ -138,6 +150,12 @@ const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
         <td className="px-4 py-4 whitespace-nowrap">
             <div className="text-slate-600 text-sm">{new Date(lead.leadDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
             <div className="text-slate-400 text-xs">{lead.modeOfEnquiry}</div>
+            {lead.status === LeadStatus.Contacted && lead.contactDate && (
+                <div className="text-slate-500 text-xs font-medium mt-0.5">
+                    <span className="text-green-600">Contacted: {new Date(lead.contactDate).toLocaleDateString()}</span>
+                    {lead.contactDuration && <span className="text-slate-400 ml-1">({lead.contactDuration} min)</span>}
+                </div>
+            )}
             {lead.source && (
                 <div className="text-slate-500 text-xs font-medium mt-0.5">
                     <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{lead.source}</span>
@@ -178,6 +196,49 @@ const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
 const LeadsTable: React.FC<LeadsTableProps> = ({ leads, users, onOpenModal, selectedLeadIds, onSelectLead, onSelectAll, allVisibleLeadsSelected }) => {
   const userMap = new Map<string, string>(users.map(user => [user.id, user.name]));
 
+  // Helper function to get salesperson name with better error handling
+  const getSalespersonName = (assignedId: string | null | undefined, leadId?: string): string => {
+    if (!assignedId || assignedId === '' || assignedId === 'admin-0') {
+      return 'Unassigned';
+    }
+    
+    // Try exact match first
+    const name = userMap.get(assignedId);
+    if (name) {
+      return name;
+    }
+    
+    // Debug: log when user ID is not found
+    console.warn('⚠️ User ID not found in userMap:', {
+      assignedId,
+      assignedIdType: typeof assignedId,
+      assignedIdLength: assignedId?.length,
+      availableUserIds: Array.from(userMap.keys()),
+      availableUserNames: Array.from(userMap.values()),
+      allUsers: users.map(u => ({ id: u.id, name: u.name, idType: typeof u.id })),
+      leadId: leadId || leads.find(l => l.assignedSalespersonId === assignedId)?.id,
+      leadCustomerName: leads.find(l => l.assignedSalespersonId === assignedId)?.customerName
+    });
+    
+    // Try to find by name as fallback (in case ID format is different)
+    const user = users.find(u => {
+      // Try exact ID match
+      if (u.id === assignedId) return true;
+      // Try string comparison (case-insensitive)
+      if (String(u.id).toLowerCase() === String(assignedId).toLowerCase()) return true;
+      // Try name match (in case someone assigned by name instead of ID)
+      if (u.name === assignedId) return true;
+      return false;
+    });
+    
+    if (user) {
+      console.log('✅ Found user by fallback method:', user.name);
+      return user.name;
+    }
+    
+    return 'Unknown';
+  };
+
   if (leads.length === 0) {
     return (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -213,7 +274,7 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, users, onOpenModal, sele
                     key={lead.id}
                     lead={lead}
                     index={index}
-                    salespersonName={userMap.get(lead.assignedSalespersonId) || 'Unknown'}
+                    salespersonName={getSalespersonName(lead.assignedSalespersonId, lead.id)}
                     isSelected={selectedLeadIds.has(lead.id)}
                     onSelect={onSelectLead}
                     onOpenModal={onOpenModal}
@@ -253,7 +314,7 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, users, onOpenModal, sele
                             key={lead.id}
                             lead={lead}
                             index={index}
-                            salespersonName={userMap.get(lead.assignedSalespersonId) || 'Unknown'}
+                            salespersonName={getSalespersonName(lead.assignedSalespersonId, lead.id)}
                             isSelected={selectedLeadIds.has(lead.id)}
                             onSelect={onSelectLead}
                             onOpenModal={onOpenModal}

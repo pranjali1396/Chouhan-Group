@@ -31,7 +31,7 @@ const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onA
   const isAdmin = currentUser.role === 'Admin';
   const salesAgents = users.filter(u => u.role === 'Salesperson');
   const adminUser = users.find(u => u.role === 'Admin');
-  const defaultAdminId = adminUser?.id || 'admin-0';
+  const defaultAdminId = adminUser?.id || '';
 
   const [formData, setFormData] = useState<NewLeadData>({
       ...initialFormState,

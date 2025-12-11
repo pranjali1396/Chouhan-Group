@@ -295,54 +295,54 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
                     }`}
                   >
                     <button
-                      onClick={() => handleNotificationClick(notification)}
-                      className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
-                        !notification.isRead ? 'bg-blue-50/50' : ''
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`flex-shrink-0 mt-1 ${
-                          notification.type === 'new_lead' ? 'text-green-500' : 'text-blue-500'
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
+                      !notification.isRead ? 'bg-blue-50/50' : ''
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 mt-1 ${
+                        notification.type === 'new_lead' ? 'text-green-500' : 'text-blue-500'
+                      }`}>
+                        {notification.type === 'new_lead' ? (
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${
+                          !notification.isRead ? 'text-gray-900' : 'text-gray-700'
                         }`}>
-                          {notification.type === 'new_lead' ? (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          ) : (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold ${
-                            !notification.isRead ? 'text-gray-900' : 'text-gray-700'
-                          }`}>
-                            {notification.message || (notification.type === 'new_lead' ? `New lead from ${notification.leadData?.customerName || 'Unknown'}` : 'Lead Assigned')}
+                          {notification.message || (notification.type === 'new_lead' ? `New lead from ${notification.leadData?.customerName || 'Unknown'}` : 'Lead Assigned')}
+                        </p>
+                        {notification.type === 'lead_assigned' && (
+                          <p className="text-sm text-gray-600 mt-0.5">
+                            {notification.leadData?.customerName || 'Unknown'}
                           </p>
-                          {notification.type === 'lead_assigned' && (
-                            <p className="text-sm text-gray-600 mt-0.5">
-                              {notification.leadData?.customerName || 'Unknown'}
-                            </p>
-                          )}
-                          {notification.leadData?.mobile && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              📱 {notification.leadData.mobile}
-                            </p>
-                          )}
-                          {notification.leadData?.interestedProject && (
-                            <p className="text-xs text-gray-500">
-                              🏢 {notification.leadData.interestedProject}
-                            </p>
-                          )}
-                          <p className="text-xs text-gray-400 mt-2">
-                            {new Date(notification.createdAt).toLocaleString()}
+                        )}
+                        {notification.leadData?.mobile && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            📱 {notification.leadData.mobile}
                           </p>
-                        </div>
+                        )}
+                        {notification.leadData?.interestedProject && (
+                          <p className="text-xs text-gray-500">
+                            🏢 {notification.leadData.interestedProject}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-2">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </p>
+                      </div>
                         <div className="flex items-start gap-2">
-                          {!notification.isRead && (
-                            <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
-                          )}
+                      {!notification.isRead && (
+                        <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
+                      )}
                           <button
                             onClick={(e) => handleDeleteNotification(e, notification.id)}
                             className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
@@ -353,8 +353,8 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
                             </svg>
                           </button>
                         </div>
-                      </div>
-                    </button>
+                    </div>
+                  </button>
                   </div>
                 ))}
               </div>
