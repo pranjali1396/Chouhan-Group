@@ -800,10 +800,10 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
     }
 
     return (
-        <div className="p-3 md:p-4 space-y-3 md:space-y-4 h-[calc(100vh-90px)] flex flex-col overflow-hidden">
+        <div className="p-2 md:p-3 space-y-2 md:space-y-3 h-[calc(100vh-70px)] flex flex-col overflow-hidden">
             {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 shrink-0">
-                <h1 className="text-xl md:text-2xl font-bold text-base-content capitalize">{getPageTitle()}</h1>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-3 shrink-0">
+                <h1 className="text-lg md:text-xl font-bold text-base-content capitalize">{getPageTitle()}</h1>
                 <div className="flex items-center gap-2 flex-wrap">
                     {/* Enabled for all users */}
                     <button
@@ -838,7 +838,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
+                                    className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
                                         ? 'border-primary text-primary'
                                         : 'border-transparent text-muted-content hover:text-base-content hover:border-gray-300'
                                         }`}
@@ -851,7 +851,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                 )}
 
                 {/* Search and Filter Toolbar */}
-                <div className="p-3 md:p-4 border-b border-border-color flex flex-col lg:flex-row gap-3 md:gap-4 items-start lg:items-center justify-between bg-gray-50/50 shrink-0">
+                <div className="p-2 md:p-3 border-b border-border-color flex flex-col lg:flex-row gap-2 md:gap-3 items-start lg:items-center justify-between bg-gray-50/50 shrink-0">
                     <div className="relative w-full lg:w-96">
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                             <SearchIcon className="w-4 h-4 md:w-4 md:h-4 text-gray-500" />

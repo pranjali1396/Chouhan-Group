@@ -253,11 +253,11 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
     <div className="relative" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)} 
-        className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="relative p-1.5 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
       >
-        <BellIcon className="w-6 h-6 text-gray-600" />
+        <BellIcon className="w-5 h-5 text-gray-600" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+          <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -397,17 +397,17 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (view: 
 
     return (
         <div className="relative" ref={menuRef}>
-            <button onClick={() => setIsOpen(!isOpen)} className="flex items-center space-x-2 p-1 rounded-full hover:bg-base-300 transition-colors">
+            <button onClick={() => setIsOpen(!isOpen)} className="flex items-center space-x-1.5 p-1 rounded-full hover:bg-base-300 transition-colors">
                 <img 
                     src={user.avatarUrl}
                     alt={`${user.name}'s Avatar`} 
-                    className="w-9 h-9 rounded-full border border-gray-200"
+                    className="w-7 h-7 rounded-full border border-gray-200"
                 />
                 <div className="hidden md:block text-left">
-                    <p className="text-sm font-semibold text-base-content">{user.name}</p>
-                    <p className="text-xs text-muted-content">{user.role}</p>
+                    <p className="text-xs font-semibold text-base-content">{user.name}</p>
+                    <p className="text-[10px] text-muted-content">{user.role}</p>
                 </div>
-                <svg className={`hidden md:block w-4 h-4 text-muted-content transition-transform ${isOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`hidden md:block w-3.5 h-3.5 text-muted-content transition-transform ${isOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
@@ -465,31 +465,31 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, searchResul
   }, [searchTerm]);
 
   return (
-    <header className="flex items-center justify-between h-20 px-4 md:px-6 bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 z-30 shadow-sm">
+    <header className="flex items-center justify-between h-14 px-3 md:px-4 bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 z-30 shadow-sm">
       <div className="flex items-center flex-1">
-         <button onClick={onToggleSidebar} className="md:hidden mr-4 p-2 text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+         <button onClick={onToggleSidebar} className="md:hidden mr-2 p-1.5 text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
          </button>
         <div className="relative w-full md:w-96 max-w-lg">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
-            <SearchIcon className="w-5 h-5 text-gray-500" />
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <SearchIcon className="w-4 h-4 text-gray-500" />
           </span>
           <input
             type="text"
             placeholder="Search by name, phone, project..."
             value={localSearchTerm}
             onChange={(e) => setLocalSearchTerm(e.target.value)}
-            className="w-full py-2.5 pl-11 pr-4 text-black bg-white border border-gray-400 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 placeholder-gray-500 shadow-sm"
+            className="w-full py-1.5 pl-9 pr-3 text-sm text-black bg-white border border-gray-400 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 placeholder-gray-500 shadow-sm"
           />
           {searchTerm && <SearchResults results={searchResults} users={users} onResultClick={onResultClick} />}
         </div>
       </div>
-      <div className="flex items-center space-x-2 md:space-x-4 ml-4">
+      <div className="flex items-center space-x-1.5 md:space-x-2 ml-3">
         <button
           onClick={onRefresh}
-          className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary hidden sm:block transition-colors border border-transparent hover:border-gray-300"
+          className="px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary hidden sm:block transition-colors border border-transparent hover:border-gray-300"
         >
           Refresh
         </button>

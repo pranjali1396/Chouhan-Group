@@ -18,6 +18,13 @@ const getApiBaseUrl = () => {
   // Auto-detect production: if not localhost, use staging backend
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // If running in Capacitor (mobile app), use production backend
+    if (protocol === 'capacitor:' || hostname === 'localhost' && (window as any).Capacitor) {
+      return 'https://chouhan-crm-backend-staging.onrender.com/api/v1';
+    }
+    
     // If deployed (not localhost), use Render staging backend
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
       return 'https://chouhan-crm-backend-staging.onrender.com/api/v1';

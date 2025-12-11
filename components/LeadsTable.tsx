@@ -129,8 +129,8 @@ const MobileLeadCard: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
 ));
 
 const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, isSelected, index, onSelect, onOpenModal }) => (
-    <tr className={`group transition-colors duration-200 border-b border-slate-50 last:border-none ${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/80'}`}>
-        <td className="px-4 py-4 pl-6">
+    <tr className={`group transition-all duration-150 border-b border-slate-100 last:border-none ${isSelected ? 'bg-blue-50/60 shadow-sm' : 'hover:bg-slate-50/60'}`}>
+        <td className="px-3 py-3.5 pl-4">
             <input 
                 type="checkbox"
                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
@@ -138,55 +138,55 @@ const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
                 onChange={() => onSelect(lead.id)}
             />
         </td>
-        <td className="px-4 py-4 whitespace-nowrap">
-            <div className="flex items-center">
-                {!lead.isRead && <span className="h-2 w-2 bg-primary rounded-full mr-3 flex-shrink-0" title="Unread"></span>}
-                <div>
-                    <div className="font-bold text-slate-800 text-sm">{lead.customerName}</div>
-                    <div className="text-slate-500 text-xs font-medium mt-0.5">{lead.mobile}</div>
+        <td className="px-3 py-3.5">
+            <div className="flex items-center min-w-0">
+                {!lead.isRead && <span className="h-2 w-2 bg-primary rounded-full mr-2 flex-shrink-0 animate-pulse" title="Unread"></span>}
+                <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-800 text-xs truncate" title={lead.customerName}>{lead.customerName}</div>
+                    <div className="text-slate-500 text-[10px] font-medium mt-0.5 truncate">{lead.mobile}</div>
                 </div>
             </div>
         </td>
-        <td className="px-4 py-4 whitespace-nowrap">
-            <div className="text-slate-600 text-sm">{new Date(lead.leadDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
-            <div className="text-slate-400 text-xs">{lead.modeOfEnquiry}</div>
+        <td className="px-3 py-3.5">
+            <div className="text-slate-700 text-xs font-semibold">{new Date(lead.leadDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+            <div className="text-slate-400 text-[10px] mt-0.5">{lead.modeOfEnquiry}</div>
             {lead.status === LeadStatus.Contacted && lead.contactDate && (
-                <div className="text-slate-500 text-xs font-medium mt-0.5">
-                    <span className="text-green-600">Contacted: {new Date(lead.contactDate).toLocaleDateString()}</span>
-                    {lead.contactDuration && <span className="text-slate-400 ml-1">({lead.contactDuration} min)</span>}
+                <div className="text-slate-500 text-[10px] font-medium mt-0.5">
+                    <span className="text-green-600">✓ {new Date(lead.contactDate).toLocaleDateString()}</span>
+                    {lead.contactDuration && <span className="text-slate-400 ml-1">({lead.contactDuration}m)</span>}
                 </div>
             )}
             {lead.source && (
-                <div className="text-slate-500 text-xs font-medium mt-0.5">
-                    <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{lead.source}</span>
+                <div className="mt-1">
+                    <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{lead.source}</span>
                 </div>
             )}
         </td>
-        <td className="px-4 py-4 whitespace-nowrap">
-            <div className="flex items-center">
-                 <div className="h-6 w-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 mr-2">
-                    {salespersonName.charAt(0)}
+        <td className="px-3 py-3.5">
+            <div className="flex items-center min-w-0">
+                 <div className="h-5 w-5 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-700 mr-2 flex-shrink-0">
+                    {salespersonName.charAt(0).toUpperCase()}
                  </div>
-                 <span className="text-sm font-medium text-slate-700">{salespersonName}</span>
+                 <span className="text-xs font-medium text-slate-700 truncate" title={salespersonName}>{salespersonName}</span>
             </div>
         </td>
-        <td className="px-4 py-4 whitespace-nowrap">
+        <td className="px-3 py-3.5">
              <StatusBadge type="status" value={lead.status} />
         </td>
-        <td className="px-4 py-4 whitespace-nowrap text-center">
+        <td className="px-3 py-3.5 text-center">
             <StatusBadge type="visit" value={lead.visitStatus} />
         </td>
-        <td className="px-4 py-4 whitespace-nowrap">
-             <span className="text-sm font-medium text-slate-700">{lead.interestedProject || '-'}</span>
+        <td className="px-3 py-3.5">
+             <span className="text-xs font-medium text-slate-700 break-words" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.3' }} title={lead.interestedProject || undefined}>{lead.interestedProject || '-'}</span>
         </td>
-        <td className="px-4 py-4 whitespace-nowrap">
+        <td className="px-3 py-3.5">
              <StatusBadge type="temp" value={lead.temperature} />
         </td>
-        <td className="px-4 py-4 max-w-xs truncate text-sm text-slate-500 italic group-hover:text-slate-700">
-            {lead.lastRemark}
+        <td className="px-3 py-3.5">
+            <span className="text-xs text-slate-500 italic group-hover:text-slate-700 break-words" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.3' }} title={lead.lastRemark || undefined}>{lead.lastRemark || '-'}</span>
         </td>
-        <td className="px-4 py-4 whitespace-nowrap text-right pr-6">
-            <button onClick={() => onOpenModal(lead)} className="text-primary hover:text-primary-focus font-bold text-sm px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+        <td className="px-3 py-3.5 text-center">
+            <button onClick={() => onOpenModal(lead)} className="text-primary hover:text-primary-focus font-bold text-xs px-2.5 py-1.5 rounded-lg hover:bg-blue-50 active:bg-blue-100 transition-all duration-150 shadow-sm hover:shadow">
                 View
             </button>
         </td>
@@ -236,7 +236,8 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, users, onOpenModal, sele
       return user.name;
     }
     
-    return 'Unknown';
+    // Don't show "Unknown", show "Unassigned" instead
+    return 'Unassigned';
   };
 
   if (leads.length === 0) {
@@ -283,11 +284,11 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, users, onOpenModal, sele
         </div>
 
         {/* Desktop View */}
-        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-100">
-            <table className="min-w-full divide-y divide-slate-100">
-                <thead className="bg-slate-50/80 backdrop-blur-sm">
+        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+            <table className="min-w-full divide-y divide-slate-100 table-fixed">
+                <thead className="bg-gradient-to-r from-slate-50 to-slate-100/50 backdrop-blur-sm border-b-2 border-slate-200">
                     <tr>
-                        <th scope="col" className="px-4 py-3.5 pl-6 text-left">
+                        <th scope="col" className="px-3 py-3.5 pl-4 text-left w-12">
                             <input 
                                 type="checkbox"
                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
@@ -295,15 +296,15 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, users, onOpenModal, sele
                                 checked={allVisibleLeadsSelected}
                             />
                         </th>
-                        <th scope="col" className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Customer</th>
-                        <th scope="col" className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date & Source</th>
-                        <th scope="col" className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Assignee</th>
-                        <th scope="col" className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" className="px-4 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Visit</th>
-                        <th scope="col" className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Project</th>
-                        <th scope="col" className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Temp</th>
-                        <th scope="col" className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Latest Remark</th>
-                        <th scope="col" className="relative px-4 py-3.5 pr-6">
+                        <th scope="col" className="px-3 py-3.5 text-left text-xs font-bold text-slate-600 uppercase tracking-wider w-32">Customer</th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-xs font-bold text-slate-600 uppercase tracking-wider w-32">Date & Source</th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-xs font-bold text-slate-600 uppercase tracking-wider w-28">Assignee</th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-xs font-bold text-slate-600 uppercase tracking-wider w-28">Status</th>
+                        <th scope="col" className="px-3 py-3.5 text-center text-xs font-bold text-slate-600 uppercase tracking-wider w-24">Visit</th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-xs font-bold text-slate-600 uppercase tracking-wider w-32">Project</th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-xs font-bold text-slate-600 uppercase tracking-wider w-24">Temp</th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-xs font-bold text-slate-600 uppercase tracking-wider w-40">Remark</th>
+                        <th scope="col" className="relative px-3 py-3.5 pr-4 text-center w-20">
                             <span className="sr-only">Actions</span>
                         </th>
                     </tr>
