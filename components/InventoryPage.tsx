@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Project, Unit, InventoryStatus, InventoryType } from '../data/inventoryData';
-import { BuildingOfficeIcon, PencilSquareIcon, CheckCircleIcon, PlusIcon, TrashIcon } from './Icons';
+import { BuildingOfficeIcon, PencilSquareIcon, CheckCircleIcon, PlusIcon, TrashIcon, MapPinIcon, CurrencyRupeeIcon } from './Icons';
+import { MetricCard, MetricGrid } from './MetricSection';
 import type { User } from '../types';
 
 interface InventoryPageProps {
@@ -27,63 +28,80 @@ const StatusBadge: React.FC<{ status: InventoryStatus }> = ({ status }) => {
     );
 };
 
-const UnitCard: React.FC<{ 
-    unit: Unit, 
-    onClick: () => void, 
+const UnitCard: React.FC<{
+    unit: Unit,
+    onClick: () => void,
     onEdit?: (e: React.MouseEvent) => void,
     onDelete?: (e: React.MouseEvent) => void
 }> = ({ unit, onClick, onEdit, onDelete }) => {
-    const statusColors = {
-        'Available': 'bg-white hover:border-green-400 border-gray-200 shadow-sm hover:shadow-md',
-        'Booked': 'bg-red-50 border-red-100 opacity-75 cursor-not-allowed',
-        'Hold': 'bg-yellow-50 border-yellow-200 hover:border-yellow-400',
-        'Blocked': 'bg-gray-100 border-gray-200 opacity-60',
+    const statusConfig = {
+        'Available': {
+            card: 'bg-white border-slate-200 hover:border-emerald-400 active:ring-4 active:ring-emerald-50',
+            badge: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+            indicator: 'bg-emerald-500'
+        },
+        'Booked': {
+            card: 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed grayscale-[0.5]',
+            badge: 'bg-slate-200 text-slate-500 border-slate-200',
+            indicator: 'bg-slate-400'
+        },
+        'Hold': {
+            card: 'bg-amber-50/50 border-amber-200 hover:border-amber-400 active:ring-4 active:ring-amber-50',
+            badge: 'bg-amber-100 text-amber-700 border-amber-200',
+            indicator: 'bg-amber-500'
+        },
+        'Blocked': {
+            card: 'bg-rose-50 border-rose-100 opacity-75',
+            badge: 'bg-rose-100 text-rose-700 border-rose-200',
+            indicator: 'bg-rose-500'
+        },
     };
 
+    const config = statusConfig[unit.status] || statusConfig['Available'];
+
     return (
-        <div 
+        <div
             onClick={() => unit.status !== 'Booked' && onClick()}
-            className={`p-3 rounded-xl border transition-all duration-200 ${statusColors[unit.status]} flex flex-col justify-between h-28 relative overflow-hidden group cursor-pointer`}
+            className={`p-4 rounded-[1.5rem] border-2 transition-all duration-300 flex flex-col justify-between min-h-[120px] relative overflow-hidden group cursor-pointer shadow-sm active:scale-95 ${config.card}`}
         >
-            <div className="flex justify-between items-start">
-                <span className="font-bold text-lg text-gray-800">{unit.unitNumber}</span>
-                <div className="flex items-center gap-1 z-10">
+            <div className="flex justify-between items-start z-10">
+                <div className="flex flex-col">
+                    <span className="font-black text-xl text-slate-900 leading-none">{unit.unitNumber}</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{unit.type}</span>
+                </div>
+                <div className="flex items-center gap-1">
                     {onEdit && (
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit(e);
-                            }}
-                            className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"
-                            title="Edit Unit"
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEdit(e); }}
+                            className="p-1.5 text-slate-400 hover:text-primary rounded-lg hover:bg-slate-100 transition-colors"
                         >
                             <PencilSquareIcon className="w-4 h-4" />
                         </button>
                     )}
-                    {onDelete && (
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete(e);
-                            }}
-                            className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
-                            title="Delete Unit"
-                        >
-                            <TrashIcon className="w-4 h-4" />
-                        </button>
-                    )}
                 </div>
-                {!onEdit && unit.status === 'Available' && <div className="h-2 w-2 rounded-full bg-green-500"></div>}
             </div>
-            <div>
-                <div className="flex justify-between items-baseline">
-                    <p className="text-xs text-gray-500 font-medium">{unit.type}</p>
-                    <p className="text-[10px] text-gray-400">{unit.size}</p>
+
+            <div className="z-10 mt-2">
+                <div className="flex justify-between items-end">
+                    <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{unit.size}</p>
+                        <p className="text-sm font-black text-primary tracking-tight">{unit.price}</p>
+                    </div>
                 </div>
-                <p className="text-sm font-bold text-primary mt-0.5">{unit.price}</p>
             </div>
+
+            {/* Premium Status Bar at Bottom */}
+            <div className={`absolute bottom-0 left-0 right-0 h-1.5 ${config.indicator} opacity-80`}></div>
+
+            {/* Status Badge in corner */}
+            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${config.badge}`}>
+                    {unit.status}
+                </div>
+            </div>
+
             {unit.status === 'Available' && (
-                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
             )}
         </div>
     );
@@ -100,7 +118,7 @@ const BookingModal: React.FC<{ unit: Unit; onClose: () => void; onConfirm: () =>
                     <h3 className="text-xl font-bold text-gray-900">Book Unit {unit.unitNumber}</h3>
                     <p className="text-gray-500 text-sm mt-1">{unit.type} • {unit.size}</p>
                 </div>
-                
+
                 <div className="bg-gray-50 p-4 rounded-xl mb-6 space-y-2 border border-gray-100">
                     <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Base Price</span>
@@ -121,10 +139,10 @@ const BookingModal: React.FC<{ unit: Unit; onClose: () => void; onConfirm: () =>
     );
 };
 
-const EditUnitModal: React.FC<{ 
-    unit: Unit; 
-    onClose: () => void; 
-    onSave: (updatedUnit: Unit) => void 
+const EditUnitModal: React.FC<{
+    unit: Unit;
+    onClose: () => void;
+    onSave: (updatedUnit: Unit) => void
 }> = ({ unit, onClose, onSave }) => {
     const [formData, setFormData] = useState<Unit>({ ...unit });
 
@@ -144,7 +162,7 @@ const EditUnitModal: React.FC<{
                     <h3 className="text-lg font-bold text-gray-900">Edit Details: {unit.unitNumber}</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
                 </div>
-                
+
                 <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -163,7 +181,7 @@ const EditUnitModal: React.FC<{
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                         <div>
+                        <div>
                             <label className="label-style">Type</label>
                             <select name="type" value={formData.type} onChange={handleChange} className="input-style">
                                 <option value="Plot">Plot</option>
@@ -175,7 +193,7 @@ const EditUnitModal: React.FC<{
                                 <option value="Commercial">Commercial</option>
                             </select>
                         </div>
-                         <div>
+                        <div>
                             <label className="label-style">Price</label>
                             <input type="text" name="price" value={formData.price} onChange={handleChange} className="input-style" />
                         </div>
@@ -191,7 +209,7 @@ const EditUnitModal: React.FC<{
                             <input type="text" name="facing" value={formData.facing || ''} onChange={handleChange} className="input-style" />
                         </div>
                     </div>
-                     <div>
+                    <div>
                         <label className="label-style">Floor</label>
                         <input type="text" name="floor" value={formData.floor || ''} onChange={handleChange} className="input-style" />
                     </div>
@@ -206,11 +224,11 @@ const EditUnitModal: React.FC<{
     );
 };
 
-const AddUnitModal: React.FC<{ 
-    onClose: () => void; 
-    onSave: (newUnit: Unit) => void 
+const AddUnitModal: React.FC<{
+    onClose: () => void;
+    onSave: (newUnit: Unit) => void
 }> = ({ onClose, onSave }) => {
-    const [formData, setFormData] = useState<Unit>({ 
+    const [formData, setFormData] = useState<Unit>({
         id: `unit-${Date.now()}`,
         unitNumber: '',
         type: 'Plot',
@@ -238,7 +256,7 @@ const AddUnitModal: React.FC<{
                     <h3 className="text-lg font-bold text-gray-900">Add New Unit</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
                 </div>
-                
+
                 <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -257,7 +275,7 @@ const AddUnitModal: React.FC<{
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                         <div>
+                        <div>
                             <label className="label-style">Type</label>
                             <select name="type" value={formData.type} onChange={handleChange} className="input-style">
                                 <option value="Plot">Plot</option>
@@ -269,7 +287,7 @@ const AddUnitModal: React.FC<{
                                 <option value="Commercial">Commercial</option>
                             </select>
                         </div>
-                         <div>
+                        <div>
                             <label className="label-style">Price</label>
                             <input type="text" name="price" value={formData.price} onChange={handleChange} className="input-style" placeholder="e.g. 25.0 Lac" />
                         </div>
@@ -285,7 +303,7 @@ const AddUnitModal: React.FC<{
                             <input type="text" name="facing" value={formData.facing || ''} onChange={handleChange} className="input-style" placeholder="e.g. East" />
                         </div>
                     </div>
-                     <div>
+                    <div>
                         <label className="label-style">Floor</label>
                         <input type="text" name="floor" value={formData.floor || ''} onChange={handleChange} className="input-style" placeholder="e.g. 1st Floor" />
                     </div>
@@ -364,15 +382,15 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ projects, onBookUnit, onU
     };
 
     return (
-        <div className="space-y-6 pb-20">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-base-content">Inventory</h1>
-                    <p className="text-sm text-muted-content mt-1">Manage plots, flats and bookings.</p>
+        <div className="space-y-4 md:space-y-6">
+            <div className="flex items-center justify-between gap-3 shrink-0 relative flex-wrap md:flex-nowrap">
+                <div className="min-w-0">
+                    <h1 className="text-lg md:text-3xl font-black text-slate-800 tracking-tight truncate">Inventory</h1>
+                    <p className="text-[10px] md:text-sm text-slate-500 mt-0.5 md:mt-1 font-black uppercase tracking-widest truncate">Units Management</p>
                 </div>
-                <div className="w-full md:w-auto flex gap-2">
-                    <select 
-                        value={selectedProjectId} 
+                <div className="flex items-center gap-2 shrink-0">
+                    <select
+                        value={selectedProjectId}
                         onChange={(e) => {
                             setSelectedProjectId(e.target.value);
                             setFilterType('All'); // Reset type filter on project change
@@ -383,9 +401,9 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ projects, onBookUnit, onU
                             <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
                     </select>
-                    
+
                     {isAdmin && (
-                        <button 
+                        <button
                             onClick={() => setShowAddModal(true)}
                             className="flex items-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-focus shadow-sm transition-colors whitespace-nowrap"
                         >
@@ -396,48 +414,57 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ projects, onBookUnit, onU
                 </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="card p-4 border-t-4 border-blue-500">
-                    <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Units</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
-                </div>
-                <div className="card p-4 border-t-4 border-green-500">
-                    <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Available</p>
-                    <p className="text-2xl font-bold text-green-600 mt-1">{stats.available}</p>
-                </div>
-                <div className="card p-4 border-t-4 border-red-500">
-                    <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Booked</p>
-                    <p className="text-2xl font-bold text-red-600 mt-1">{stats.booked}</p>
-                </div>
-                <div className="card p-4 border-t-4 border-yellow-500">
-                    <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">On Hold</p>
-                    <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.hold}</p>
-                </div>
-            </div>
+            {/* Premium Overview Section */}
+            <MetricGrid>
+                <MetricCard
+                    title="Total Units"
+                    value={stats.total}
+                    icon={<BuildingOfficeIcon className="w-6 h-6 text-white" />}
+                    colorClass="bg-indigo-600"
+                />
+                <MetricCard
+                    title="Available"
+                    value={stats.available}
+                    icon={<CheckCircleIcon className="w-6 h-6 text-white" />}
+                    colorClass="bg-emerald-600"
+                    trend="Ready to Sell"
+                />
+                <MetricCard
+                    title="Booked"
+                    value={stats.booked}
+                    icon={<CurrencyRupeeIcon className="w-6 h-6 text-white" />}
+                    colorClass="bg-rose-600"
+                    trend="Revenue Locked"
+                />
+                <MetricCard
+                    title="On Hold"
+                    value={stats.hold}
+                    icon={<MapPinIcon className="w-6 h-6 text-white" />}
+                    colorClass="bg-amber-600"
+                />
+            </MetricGrid>
 
             {/* Filters */}
             <div className="card p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                 <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2">
                     {['All', 'Available', 'Booked', 'Hold'].map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilterStatus(f as any)}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                filterStatus === f 
-                                ? 'bg-gray-900 text-white' 
+                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${filterStatus === f
+                                ? 'bg-gray-900 text-white'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
+                                }`}
                         >
                             {f}
                         </button>
                     ))}
                 </div>
-                
+
                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <span className="text-sm font-bold text-gray-500 uppercase">Type:</span>
-                    <select 
-                        value={filterType} 
+                    <select
+                        value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
                         className="input-style py-1.5 !w-auto text-sm"
                     >
@@ -453,16 +480,16 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ projects, onBookUnit, onU
             <div className="card p-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4">
                     {filteredUnits.map(unit => (
-                        <UnitCard 
-                            key={unit.id} 
-                            unit={unit} 
+                        <UnitCard
+                            key={unit.id}
+                            unit={unit}
                             onClick={() => setSelectedUnit(unit)}
                             onEdit={isAdmin ? (e) => setEditingUnit(unit) : undefined}
                             onDelete={isAdmin ? (e) => handleDelete(unit.id) : undefined}
                         />
                     ))}
                 </div>
-                
+
                 {filteredUnits.length === 0 && (
                     <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
                         <p className="text-gray-400 font-medium">No units match the selected filters.</p>
@@ -471,18 +498,18 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ projects, onBookUnit, onU
             </div>
 
             {selectedUnit && (
-                <BookingModal 
-                    unit={selectedUnit} 
-                    onClose={() => setSelectedUnit(null)} 
-                    onConfirm={handleBook} 
+                <BookingModal
+                    unit={selectedUnit}
+                    onClose={() => setSelectedUnit(null)}
+                    onConfirm={handleBook}
                 />
             )}
 
             {editingUnit && (
-                <EditUnitModal 
-                    unit={editingUnit} 
-                    onClose={() => setEditingUnit(null)} 
-                    onSave={handleSaveEdit} 
+                <EditUnitModal
+                    unit={editingUnit}
+                    onClose={() => setEditingUnit(null)}
+                    onSave={handleSaveEdit}
                 />
             )}
 

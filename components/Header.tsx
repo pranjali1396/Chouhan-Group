@@ -91,7 +91,7 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
         lastCheckedRef.current = new Date().toISOString();
         return;
       }
-      
+
       // Subsequent fetches - only get new notifications
       console.log('🔔 Fetching new notifications for user:', currentUser.id, 'role:', currentUser.role, 'lastChecked:', lastCheckedRef.current);
       const newNotifications = await api.getNotifications(
@@ -99,9 +99,9 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
         currentUser.role,
         lastCheckedRef.current
       );
-      
+
       console.log('📬 Received new notifications:', newNotifications.length, newNotifications);
-      
+
       if (newNotifications.length > 0) {
         setNotifications(prev => {
           // Filter out notifications that are being removed or are already read
@@ -131,11 +131,11 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
   // Poll for notifications every 5 seconds
   useEffect(() => {
     if (!currentUser) return;
-    
+
     // Reset initial load flag when user changes
     hasLoadedInitialRef.current = false;
     lastCheckedRef.current = new Date().toISOString();
-    
+
     fetchNotifications();
     const intervalId = setInterval(fetchNotifications, 5000);
     return () => clearInterval(intervalId);
@@ -152,10 +152,10 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
     if (!notification.isRead) {
       try {
         await api.markNotificationRead(notification.id);
-        
+
         // Add to removing set for animation
         setRemovingIds(prev => new Set(prev).add(notification.id));
-        
+
         // Remove after animation completes
         setTimeout(() => {
           setNotifications(prev => prev.filter(n => n.id !== notification.id));
@@ -190,13 +190,13 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
     } else {
       onNavigate('Leads');
     }
-    
+
     setIsOpen(false);
   };
 
   const markAllAsRead = async () => {
     const unreadNotifications = notifications.filter(n => !n.isRead);
-    
+
     // Mark all as read in backend
     for (const notif of unreadNotifications) {
       try {
@@ -205,11 +205,11 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
         console.error('Error marking notification as read:', err);
       }
     }
-    
+
     // Add all to removing set for animation
     const unreadIds = new Set(unreadNotifications.map(n => n.id));
     setRemovingIds(prev => new Set([...prev, ...unreadIds]));
-    
+
     // Remove all after animation completes
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => !unreadIds.has(n.id)));
@@ -223,17 +223,17 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
 
   const handleDeleteNotification = async (e: React.MouseEvent, notificationId: string) => {
     e.stopPropagation(); // Prevent triggering the notification click
-    
+
     if (!window.confirm('Are you sure you want to delete this notification?')) {
       return;
     }
-    
+
     try {
       await api.deleteNotification(notificationId);
-      
+
       // Add to removing set for animation
       setRemovingIds(prev => new Set(prev).add(notificationId));
-      
+
       // Remove after animation completes
       setTimeout(() => {
         setNotifications(prev => prev.filter(n => n.id !== notificationId));
@@ -251,8 +251,8 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
 
   return (
     <div className="relative" ref={menuRef}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
+      <button
+        onClick={() => setIsOpen(!isOpen)}
         className="relative p-1.5 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
       >
         <BellIcon className="w-5 h-5 text-gray-600" />
@@ -262,7 +262,7 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
           </span>
         )}
       </button>
-      
+
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 animate-in fade-in zoom-in duration-200 origin-top-right max-h-[500px] flex flex-col">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -276,7 +276,7 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
               </button>
             )}
           </div>
-          
+
           <div className="overflow-y-auto flex-1">
             {notifications.length === 0 ? (
               <div className="p-8 text-center">
@@ -288,61 +288,57 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`relative group w-full transition-all duration-300 ${
-                      removingIds.has(notification.id) 
-                        ? 'opacity-0 translate-x-full max-h-0 overflow-hidden' 
-                        : 'opacity-100 translate-x-0'
-                    }`}
+                    className={`relative group w-full transition-all duration-300 ${removingIds.has(notification.id)
+                      ? 'opacity-0 translate-x-full max-h-0 overflow-hidden'
+                      : 'opacity-100 translate-x-0'
+                      }`}
                   >
                     <button
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
-                      !notification.isRead ? 'bg-blue-50/50' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`flex-shrink-0 mt-1 ${
-                        notification.type === 'new_lead' ? 'text-green-500' : 'text-blue-500'
-                      }`}>
-                        {notification.type === 'new_lead' ? (
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        ) : (
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold ${
-                          !notification.isRead ? 'text-gray-900' : 'text-gray-700'
-                        }`}>
-                          {notification.message || (notification.type === 'new_lead' ? `New lead from ${notification.leadData?.customerName || 'Unknown'}` : 'Lead Assigned')}
-                        </p>
-                        {notification.type === 'lead_assigned' && (
-                          <p className="text-sm text-gray-600 mt-0.5">
-                            {notification.leadData?.customerName || 'Unknown'}
+                      onClick={() => handleNotificationClick(notification)}
+                      className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${!notification.isRead ? 'bg-blue-50/50' : ''
+                        }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`flex-shrink-0 mt-1 ${notification.type === 'new_lead' ? 'text-green-500' : 'text-blue-500'
+                          }`}>
+                          {notification.type === 'new_lead' ? (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-semibold ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'
+                            }`}>
+                            {notification.message || (notification.type === 'new_lead' ? `New lead from ${notification.leadData?.customerName || 'Unknown'}` : 'Lead Assigned')}
                           </p>
-                        )}
-                        {notification.leadData?.mobile && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            📱 {notification.leadData.mobile}
+                          {notification.type === 'lead_assigned' && (
+                            <p className="text-sm text-gray-600 mt-0.5">
+                              {notification.leadData?.customerName || 'Unknown'}
+                            </p>
+                          )}
+                          {notification.leadData?.mobile && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              📱 {notification.leadData.mobile}
+                            </p>
+                          )}
+                          {notification.leadData?.interestedProject && (
+                            <p className="text-xs text-gray-500">
+                              🏢 {notification.leadData.interestedProject}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(notification.createdAt).toLocaleString()}
                           </p>
-                        )}
-                        {notification.leadData?.interestedProject && (
-                          <p className="text-xs text-gray-500">
-                            🏢 {notification.leadData.interestedProject}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-400 mt-2">
-                          {new Date(notification.createdAt).toLocaleString()}
-                        </p>
-                      </div>
+                        </div>
                         <div className="flex items-start gap-2">
-                      {!notification.isRead && (
-                        <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
-                      )}
+                          {!notification.isRead && (
+                            <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
+                          )}
                           <button
                             onClick={(e) => handleDeleteNotification(e, notification.id)}
                             className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
@@ -353,8 +349,8 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
                             </svg>
                           </button>
                         </div>
-                    </div>
-                  </button>
+                      </div>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -367,80 +363,80 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
 };
 
 const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (view: string) => void }> = ({ user, onLogout, onNavigate }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleSettingsClick = () => {
-        onNavigate('Settings');
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+      }
     };
-    
-    const handleProfileClick = () => {
-        // For now, map Profile to Settings for admin or show simple alert/placeholder
-        if (user.role === 'Admin') {
-             onNavigate('Settings');
-        } else {
-             alert("Profile editing is restricted for salespersons. Please contact admin.");
-        }
-        setIsOpen(false);
-    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    return (
-        <div className="relative" ref={menuRef}>
-            <button onClick={() => setIsOpen(!isOpen)} className="flex items-center space-x-1.5 p-1 rounded-full hover:bg-base-300 transition-colors">
-                <img 
-                    src={user.avatarUrl}
-                    alt={`${user.name}'s Avatar`} 
-                    className="w-7 h-7 rounded-full border border-gray-200"
-                />
-                <div className="hidden md:block text-left">
-                    <p className="text-xs font-semibold text-base-content">{user.name}</p>
-                    <p className="text-[10px] text-muted-content">{user.role}</p>
-                </div>
-                <svg className={`hidden md:block w-3.5 h-3.5 text-muted-content transition-transform ${isOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-            {isOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50 animate-in fade-in zoom-in duration-200 origin-top-right">
-                    <div className="p-2">
-                         <div className="flex items-center p-3 mb-2 bg-base-200 rounded-xl">
-                            <img src={user.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border border-white shadow-sm" />
-                            <div className="ml-3 overflow-hidden">
-                                <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
-                                <p className="text-xs text-slate-500 truncate">{user.role}</p>
-                            </div>
-                        </div>
-                         <button onClick={handleProfileClick} className="flex items-center w-full text-left px-3 py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
-                            <UserCircleIcon className="w-5 h-5 mr-3 text-slate-400" />
-                            <span>My Profile</span>
-                        </button>
-                        {user.role === 'Admin' && (
-                            <button onClick={handleSettingsClick} className="flex items-center w-full text-left px-3 py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
-                                <CogIcon className="w-5 h-5 mr-3 text-slate-400" />
-                                <span>Team Settings</span>
-                            </button>
-                        )}
-                        <div className="my-2 h-px bg-slate-100" />
-                        <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="flex items-center w-full text-left px-3 py-2.5 text-sm font-medium text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
-                             <ArrowLeftOnRectangleIcon className="w-5 h-5 mr-3" />
-                            <span>Logout</span>
-                        </button>
-                    </div>
-                </div>
-            )}
+  const handleSettingsClick = () => {
+    onNavigate('Settings');
+    setIsOpen(false);
+  };
+
+  const handleProfileClick = () => {
+    // For now, map Profile to Settings for admin or show simple alert/placeholder
+    if (user.role === 'Admin') {
+      onNavigate('Settings');
+    } else {
+      alert("Profile editing is restricted for salespersons. Please contact admin.");
+    }
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button onClick={() => setIsOpen(!isOpen)} className="flex items-center space-x-1.5 p-1 rounded-full hover:bg-base-300 transition-colors">
+        <img
+          src={user.avatarUrl}
+          alt={`${user.name}'s Avatar`}
+          className="w-7 h-7 rounded-full border border-gray-200"
+        />
+        <div className="hidden md:block text-left">
+          <p className="text-xs font-semibold text-base-content">{user.name}</p>
+          <p className="text-[10px] text-muted-content">{user.role}</p>
         </div>
-    );
+        <svg className={`hidden md:block w-3.5 h-3.5 text-muted-content transition-transform ${isOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50 animate-in fade-in zoom-in duration-200 origin-top-right">
+          <div className="p-2">
+            <div className="flex items-center p-3 mb-2 bg-base-200 rounded-xl">
+              <img src={user.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border border-white shadow-sm" />
+              <div className="ml-3 overflow-hidden">
+                <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
+                <p className="text-xs text-slate-500 truncate">{user.role}</p>
+              </div>
+            </div>
+            <button onClick={handleProfileClick} className="flex items-center w-full text-left px-3 py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
+              <UserCircleIcon className="w-5 h-5 mr-3 text-slate-400" />
+              <span>My Profile</span>
+            </button>
+            {user.role === 'Admin' && (
+              <button onClick={handleSettingsClick} className="flex items-center w-full text-left px-3 py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
+                <CogIcon className="w-5 h-5 mr-3 text-slate-400" />
+                <span>Team Settings</span>
+              </button>
+            )}
+            <div className="my-2 h-px bg-slate-100" />
+            <button onClick={(e) => { e.preventDefault(); onLogout(); }} className="flex items-center w-full text-left px-3 py-2.5 text-sm font-medium text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
+              <ArrowLeftOnRectangleIcon className="w-5 h-5 mr-3" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, searchResults, leads, users, currentUser, onLogout, onRefresh, onToggleSidebar, onResultClick, onNavigate }) => {
@@ -460,49 +456,51 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, searchResul
   // Update local state if parent state changes externally (e.g., clear search)
   useEffect(() => {
     if (searchTerm !== localSearchTerm) {
-        setLocalSearchTerm(searchTerm);
+      setLocalSearchTerm(searchTerm);
     }
   }, [searchTerm]);
 
   return (
-    <header className="flex items-center justify-between h-14 px-3 md:px-4 bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 z-30 shadow-sm">
+    <header className="flex items-center justify-between h-12 md:h-16 px-3 md:px-6 bg-white/80 backdrop-blur-xl border-b border-slate-100 flex-shrink-0 sticky top-0 z-30 shadow-sm animate-fade-in">
       <div className="flex items-center flex-1">
-         <button onClick={onToggleSidebar} className="md:hidden mr-2 p-1.5 text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-         </button>
-        <div className="relative w-full md:w-96 max-w-lg">
+        <button onClick={onToggleSidebar} className="md:hidden mr-2 p-1.5 text-slate-500 rounded-lg hover:bg-slate-100 transition-all active:scale-90">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div className="relative w-full md:w-[450px] group">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <SearchIcon className="w-4 h-4 text-gray-500" />
+            <SearchIcon className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-primary transition-colors" />
           </span>
           <input
             type="text"
-            placeholder="Search by name, phone, project..."
+            placeholder="Search leads..."
             value={localSearchTerm}
             onChange={(e) => setLocalSearchTerm(e.target.value)}
-            className="w-full py-1.5 pl-9 pr-3 text-sm text-black bg-white border border-gray-400 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 placeholder-gray-500 shadow-sm"
+            className="w-full py-1.5 md:py-2.5 pl-9 md:pl-11 pr-4 text-[11px] md:text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all duration-300 placeholder-slate-400 font-medium"
           />
           {searchTerm && <SearchResults results={searchResults} users={users} onResultClick={onResultClick} />}
         </div>
       </div>
-      <div className="flex items-center space-x-1.5 md:space-x-2 ml-3">
+      <div className="flex items-center space-x-3 md:space-x-4 ml-4">
         <button
           onClick={onRefresh}
-          className="px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary hidden sm:block transition-colors border border-transparent hover:border-gray-300"
+          className="p-2.5 text-slate-500 bg-slate-50 rounded-xl hover:bg-slate-100 hover:text-slate-800 transition-all active:scale-95 hidden sm:flex items-center justify-center border border-slate-200 shadow-sm"
+          title="Refresh Dashboard"
         >
-          Refresh
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
         </button>
-        <NotificationsDropdown 
-          currentUser={currentUser} 
+        <div className="h-8 w-px bg-slate-100 hidden sm:block"></div>
+        <NotificationsDropdown
+          currentUser={currentUser}
           onNavigate={onNavigate}
           onResultClick={(leadId) => {
-            // Find lead and trigger click
             const lead = [...searchResults, ...leads].find(l => l.id === leadId);
             if (lead) {
               onResultClick(lead);
             } else {
-              // If lead not found, just navigate to leads page
               onNavigate('Leads');
             }
           }}

@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
-import { 
-    PhoneIcon, 
-    ChatBubbleIcon, 
-    UsersIcon, 
+import {
+    PhoneIcon,
+    ChatBubbleIcon,
+    UsersIcon,
     CurrencyRupeeIcon,
     PresentationChartLineIcon,
     ClipboardDocumentListIcon,
@@ -13,6 +13,7 @@ import {
 import { Lead, User, LeadStatus, Activity, ActivityType } from '../types';
 import LeadDetailModal from './LeadDetailModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { MetricCard, MetricGrid } from './MetricSection';
 
 // --- types specific to Reports ---
 
@@ -73,24 +74,23 @@ const WorkflowDiagram: React.FC = () => {
                 <h3 className="text-lg font-bold text-base-content">Lead Lifecycle Workflow (Future State)</h3>
                 <p className="text-sm text-muted-content">Standard operating procedure from intake to post-sales.</p>
             </div>
-            
+
             <div className="relative">
                 {/* Desktop View: Horizontal */}
                 <div className="hidden lg:flex justify-between items-start gap-4">
-                     {steps.map((step, index) => (
+                    {steps.map((step, index) => (
                         <div key={step.id} className="flex-1 flex flex-col items-center group relative">
                             {/* Connector Line */}
                             {index < steps.length - 1 && (
                                 <div className="absolute top-5 left-1/2 w-full h-0.5 bg-gray-200 -z-10"></div>
                             )}
-                            
+
                             {/* Step Number Circle */}
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white mb-4 shadow-md z-10 transition-transform group-hover:scale-110 ${
-                                index === steps.length - 1 ? 'bg-slate-500' : 'bg-primary'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white mb-4 shadow-md z-10 transition-transform group-hover:scale-110 ${index === steps.length - 1 ? 'bg-slate-500' : 'bg-primary'
+                                }`}>
                                 {step.id}
                             </div>
-                            
+
                             {/* Card */}
                             <div className={`w-full p-4 rounded-xl border text-center min-h-[120px] flex flex-col justify-center transition-all hover:shadow-md ${step.color}`}>
                                 <h4 className="font-bold text-sm mb-1">{step.title}</h4>
@@ -105,9 +105,8 @@ const WorkflowDiagram: React.FC = () => {
                     {steps.map((step, index) => (
                         <div key={step.id} className="flex gap-4">
                             <div className="flex flex-col items-center">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs ${
-                                     index === steps.length - 1 ? 'bg-slate-500' : 'bg-primary'
-                                }`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs ${index === steps.length - 1 ? 'bg-slate-500' : 'bg-primary'
+                                    }`}>
                                     {step.id}
                                 </div>
                                 {index < steps.length - 1 && (
@@ -130,15 +129,15 @@ const RevenueChart: React.FC<{ leads: Lead[] }> = ({ leads }) => {
     const data = useMemo(() => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const currentYear = new Date().getFullYear();
-        
+
         const revenueData = months.map(month => ({ name: month, Revenue: 0, Projected: 0 }));
-        
+
         leads.forEach(lead => {
             const leadDate = new Date(lead.leadDate);
             if (leadDate.getFullYear() !== currentYear) return;
-            
+
             const monthIndex = leadDate.getMonth();
-            
+
             // Simulate revenue based on unit type for demo purposes
             let value = 0;
             if (lead.interestedUnit?.toLowerCase().includes('plot')) value = 15; // 15 Lacs
@@ -166,9 +165,9 @@ const RevenueChart: React.FC<{ leads: Lead[] }> = ({ leads }) => {
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                        <Tooltip 
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <Tooltip
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
                             formatter={(value: number) => [`₹${value.toFixed(1)} L`, '']}
                         />
@@ -187,11 +186,11 @@ const LostOpportunityAnalysis: React.FC<{ leads: Lead[] }> = ({ leads }) => {
         const lostLeads = leads.filter(l => l.status === LeadStatus.Lost || l.status === LeadStatus.Cancelled || l.status === LeadStatus.Disqualified);
         const totalLost = lostLeads.length;
         const reasons: Record<string, number> = {};
-        
+
         lostLeads.forEach(lead => {
             let reason = 'Other / No Reason';
             const remark = (lead.lastRemark || '').toLowerCase();
-            
+
             if (remark.includes('price') || remark.includes('budget') || remark.includes('expensive') || remark.includes('cost') || remark.includes('rate')) reason = 'Budget Constraints';
             else if (remark.includes('location') || remark.includes('distance') || remark.includes('area') || remark.includes('far') || remark.includes('connectivity')) reason = 'Location Mismatch';
             else if (remark.includes('plan') || remark.includes('drop') || remark.includes('later') || remark.includes('postpone')) reason = 'Plan Dropped/Postponed';
@@ -203,12 +202,12 @@ const LostOpportunityAnalysis: React.FC<{ leads: Lead[] }> = ({ leads }) => {
         });
 
         return Object.entries(reasons)
-            .map(([name, value]) => ({ 
-                name, 
+            .map(([name, value]) => ({
+                name,
                 value,
-                percentage: totalLost > 0 ? ((value / totalLost) * 100).toFixed(1) : '0' 
+                percentage: totalLost > 0 ? ((value / totalLost) * 100).toFixed(1) : '0'
             }))
-            .sort((a,b) => b.value - a.value);
+            .sort((a, b) => b.value - a.value);
     }, [leads]);
 
     const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#8b5cf6', '#3b82f6', '#64748b', '#94a3b8'];
@@ -219,7 +218,7 @@ const LostOpportunityAnalysis: React.FC<{ leads: Lead[] }> = ({ leads }) => {
                 <h3 className="text-lg font-bold text-base-content">Lost Opportunity Analysis</h3>
                 <p className="text-sm text-muted-content">Breakdown of reasons for disqualification or loss.</p>
             </div>
-            
+
             <div className="flex-1 min-h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -236,13 +235,13 @@ const LostOpportunityAnalysis: React.FC<{ leads: Lead[] }> = ({ leads }) => {
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip 
+                        <Tooltip
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
                         />
                     </PieChart>
                 </ResponsiveContainer>
             </div>
-            
+
             <div className="mt-6 space-y-3 overflow-y-auto max-h-60 pr-2">
                 {data.map((item, index) => (
                     <div key={item.name} className="flex items-center justify-between text-sm group hover:bg-gray-50 p-1 rounded">
@@ -257,11 +256,11 @@ const LostOpportunityAnalysis: React.FC<{ leads: Lead[] }> = ({ leads }) => {
                 ))}
                 {data.length === 0 && <p className="text-center text-muted-content text-sm py-4">No lost leads data available.</p>}
             </div>
-            
+
             <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                 <p className="text-xs text-muted-content">
+                <p className="text-xs text-muted-content">
                     Based on {data.reduce((acc, curr) => acc + curr.value, 0)} lost/disqualified leads.
-                 </p>
+                </p>
             </div>
         </div>
     );
@@ -270,11 +269,11 @@ const LostOpportunityAnalysis: React.FC<{ leads: Lead[] }> = ({ leads }) => {
 const SourcePerformanceTable: React.FC<{ leads: Lead[] }> = ({ leads }) => {
     const data = useMemo(() => {
         const sources: Record<string, { total: number, booked: number, visits: number }> = {};
-        
+
         leads.forEach(lead => {
             const source = lead.modeOfEnquiry || 'Unknown';
             if (!sources[source]) sources[source] = { total: 0, booked: 0, visits: 0 };
-            
+
             sources[source].total++;
             if (lead.status === LeadStatus.Booked || lead.status === LeadStatus.Booking) {
                 sources[source].booked++;
@@ -321,9 +320,8 @@ const SourcePerformanceTable: React.FC<{ leads: Lead[] }> = ({ leads }) => {
                                 </td>
                                 <td className="px-6 py-4 text-center font-bold text-green-600">{row.booked}</td>
                                 <td className="px-6 py-4 text-center">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                        parseFloat(row.conversion) > 5 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                    }`}>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${parseFloat(row.conversion) > 5 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                        }`}>
                                         {row.conversion}%
                                     </span>
                                 </td>
@@ -338,16 +336,16 @@ const SourcePerformanceTable: React.FC<{ leads: Lead[] }> = ({ leads }) => {
 
 const AgentScorecard: React.FC<{ users: User[], leads: Lead[], activities: Activity[] }> = ({ users, leads, activities }) => {
     const salespersons = users.filter(u => u.role === 'Salesperson');
-    
+
     const scorecard = salespersons.map(user => {
         const userLeads = leads.filter(l => l.assignedSalespersonId === user.id);
         const userActivities = activities.filter(a => a.salespersonId === user.id);
-        
+
         const totalLeads = userLeads.length;
         const booked = userLeads.filter(l => l.status === LeadStatus.Booked).length;
         const calls = userActivities.filter(a => a.type === ActivityType.Call).length;
         const visits = userActivities.filter(a => a.type === ActivityType.Visit).length;
-        
+
         // Calculate activity per lead ratio
         const intensity = totalLeads > 0 ? (userActivities.length / totalLeads).toFixed(1) : '0';
 
@@ -414,10 +412,10 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ leads, users, currentUser, on
         const totalLeads = leads.length;
         const bookedLeads = leads.filter(l => l.status === LeadStatus.Booked || l.status === LeadStatus.Booking);
         const bookingCount = bookedLeads.length;
-        
+
         // Mock Revenue Calculation (Estimate: 25L per booking avg)
-        const revenueValue = bookingCount * 25.5; 
-        
+        const revenueValue = bookingCount * 25.5;
+
         // Pipeline Value (Hot/Warm/Negotiation leads * avg ticket size * probability)
         const pipelineLeads = leads.filter(l => ['Negotiation', 'Proposal Finalized', 'Qualified'].includes(l.status));
         const pipelineValue = pipelineLeads.length * 25.5 * 0.4; // 40% probability
@@ -443,23 +441,22 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ leads, users, currentUser, on
     }
 
     return (
-        <div className="space-y-6 pb-10">
+        <div className="space-y-4 md:space-y-6">
             {/* Header & Filter */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-base-content">Business Reports</h1>
-                    <p className="text-sm text-muted-content">Operational intelligence and financial insights.</p>
+            <div className="flex items-center justify-between gap-3 shrink-0 relative flex-wrap md:flex-nowrap">
+                <div className="min-w-0">
+                    <h1 className="text-lg md:text-3xl font-black text-slate-800 tracking-tight truncate">Reports</h1>
+                    <p className="text-[10px] md:text-sm text-slate-500 mt-0.5 md:mt-1 font-black uppercase tracking-widest truncate">Intelligence</p>
                 </div>
-                <div className="flex items-center bg-white rounded-lg border border-border-color p-1 shadow-sm">
+                <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm overflow-x-auto">
                     {['This Month', 'Last Month', 'This Quarter', 'This Year'].map(range => (
                         <button
                             key={range}
                             onClick={() => setDateRange(range)}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                dateRange === range 
-                                ? 'bg-base-200 text-base-content font-bold' 
-                                : 'text-muted-content hover:text-base-content hover:bg-gray-50'
-                            }`}
+                            className={`px-3 py-1.5 md:px-4 md:py-2 text-[9px] md:text-sm font-black rounded-lg transition-all whitespace-nowrap uppercase tracking-widest ${dateRange === range
+                                ? 'bg-slate-900 text-white shadow-md'
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                                }`}
                         >
                             {range}
                         </button>
@@ -467,38 +464,37 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ leads, users, currentUser, on
                 </div>
             </div>
 
-            {/* Executive Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <KPICard 
-                    title="Booked Revenue (Est.)" 
-                    value={`₹${stats.revenue} L`} 
-                    subtitle={`${stats.bookings} units sold`} 
-                    icon={<CurrencyRupeeIcon className="w-6 h-6" />} 
-                    color="green" 
+            {/* Premium Overview Section */}
+            <MetricGrid>
+                <MetricCard
+                    title="Booked Revenue"
+                    value={`₹${stats.revenue} L`}
+                    icon={<CurrencyRupeeIcon className="w-6 h-6 text-white" />}
+                    colorClass="bg-emerald-600"
+                    trend={`${stats.bookings} units`}
                 />
-                <KPICard 
-                    title="Pipeline Value (Est.)" 
-                    value={`₹${stats.pipeline} L`} 
-                    subtitle="Weighted probability" 
-                    icon={<PresentationChartLineIcon className="w-6 h-6" />} 
-                    color="blue" 
+                <MetricCard
+                    title="Pipeline Value"
+                    value={`₹${stats.pipeline} L`}
+                    icon={<PresentationChartLineIcon className="w-6 h-6 text-white" />}
+                    colorClass="bg-indigo-600"
+                    trend="Weighted"
                 />
-                <KPICard 
-                    title="Active Leads" 
-                    value={stats.activeLeads} 
-                    subtitle="Currently in funnel" 
-                    icon={<UsersIcon className="w-6 h-6" />} 
-                    color="purple" 
+                <MetricCard
+                    title="Active Leads"
+                    value={stats.activeLeads}
+                    icon={<UsersIcon className="w-6 h-6 text-white" />}
+                    colorClass="bg-violet-600"
                 />
-                <KPICard 
-                    title="Site Visit Ratio" 
-                    value="18.4%" 
-                    subtitle="Leads to Visits" 
-                    icon={<ClipboardDocumentListIcon className="w-6 h-6" />} 
-                    color="orange" 
+                <MetricCard
+                    title="Visit Ratio"
+                    value="18.4%"
+                    icon={<ClipboardDocumentListIcon className="w-6 h-6 text-white" />}
+                    colorClass="bg-amber-600"
+                    trend="Target: 25%"
                 />
-            </div>
-            
+            </MetricGrid>
+
             <WorkflowDiagram />
 
             {/* Charts Row 1 */}
@@ -529,15 +525,15 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ leads, users, currentUser, on
             </div>
 
             {selectedLead && (
-                <LeadDetailModal 
-                    lead={selectedLead} 
+                <LeadDetailModal
+                    lead={selectedLead}
                     onClose={() => setSelectedLead(null)}
                     users={users}
                     onUpdateLead={onUpdateLead}
                     onAddActivity={onAddActivity}
                     currentUser={currentUser}
                     activities={activities.filter(a => a.leadId === selectedLead.id)}
-                    onAddTask={() => {}} // Pass dummy or real onAddTask if available
+                    onAddTask={() => { }} // Pass dummy or real onAddTask if available
                 />
             )}
         </div>

@@ -9,28 +9,23 @@ const getApiBaseUrl = () => {
   if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) {
     return (import.meta as any).env.VITE_API_URL;
   }
-  
+
   // Check window variable (for runtime override)
   if (typeof window !== 'undefined' && (window as any).VITE_API_URL) {
     return (window as any).VITE_API_URL;
   }
-  
+
   // Auto-detect production: if not localhost, use staging backend
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
-    
-    // If running in Capacitor (mobile app), use production backend
-    if (protocol === 'capacitor:' || hostname === 'localhost' && (window as any).Capacitor) {
-      return 'https://chouhan-crm-backend-staging.onrender.com/api/v1';
-    }
-    
-    // If deployed (not localhost), use Render staging backend
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+
+    // If running in Capacitor (mobile app), or explicitly deployed, use production backend
+    if (protocol === 'capacitor:' || hostname !== 'localhost' && hostname !== '127.0.0.1' || (window as any).Capacitor) {
       return 'https://chouhan-crm-backend-staging.onrender.com/api/v1';
     }
   }
-  
+
   // Default to localhost for local development
   return 'http://localhost:5000/api/v1';
 };

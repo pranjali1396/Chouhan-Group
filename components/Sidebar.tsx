@@ -3,10 +3,10 @@ import { HomeIcon, UsersIcon, ChartBarIcon, CalendarIcon, CogIcon, MapPinIcon, D
 import type { User } from '../types';
 
 interface NavLinkProps {
-  icon: React.ReactNode;
-  label: string;
-  isActive?: boolean;
-  onClick: () => void;
+    icon: React.ReactNode;
+    label: string;
+    isActive?: boolean;
+    onClick: () => void;
 }
 
 const Sidebar: React.FC<{
@@ -31,19 +31,21 @@ const Sidebar: React.FC<{
     ];
 
     const NavLink: React.FC<NavLinkProps> = ({ icon, label, isActive, onClick }) => (
-      <button
-        onClick={onClick}
-        className={`flex items-center w-full px-2.5 py-2 mb-0.5 text-xs font-medium transition-all duration-200 rounded-lg group ${
-          isActive
-            ? 'bg-primary text-white shadow-md shadow-primary/25'
-            : 'text-slate-600 hover:bg-white hover:text-primary hover:shadow-sm'
-        }`}
-      >
-        <span className={`transition-colors duration-200 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary'}`}>
-            {React.cloneElement(icon as React.ReactElement, { className: 'w-4 h-4' })}
-        </span>
-        <span className="ml-2.5 font-medium tracking-wide truncate">{label}</span>
-      </button>
+        <button
+            onClick={onClick}
+            className={`flex items-center w-full px-4 py-3 mb-1 text-xs font-black uppercase tracking-widest transition-all duration-300 rounded-xl group ${isActive
+                ? 'grad-primary text-white shadow-lg shadow-indigo-100 scale-105 z-10'
+                : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+                }`}
+        >
+            <span className={`transition-all duration-300 flex-shrink-0 ${isActive ? 'text-white scale-110 drop-shadow-md' : 'text-slate-300 group-hover:text-primary group-hover:scale-110'}`}>
+                {React.cloneElement(icon as React.ReactElement, { className: 'w-4 h-4' })}
+            </span>
+            <span className="ml-3 font-black truncate">{label}</span>
+            {isActive && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-sm animate-pulse"></div>
+            )}
+        </button>
     );
 
     const visibleNavItems = navItems.filter(item => isAdmin || !item.adminOnly);
@@ -52,28 +54,30 @@ const Sidebar: React.FC<{
         <>
             {/* Mobile overlay */}
             <div
-                className={`fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm transition-opacity md:hidden ${
-                    isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
+                className={`fixed inset-0 z-30 bg-slate-900/60 backdrop-blur-md transition-opacity md:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                    }`}
                 onClick={() => setOpen(false)}
             />
-            
-            <aside className={`fixed top-0 left-0 h-full bg-base-200 md:bg-white text-base-content w-56 p-3 transform transition-transform duration-300 ease-out z-40 md:relative md:translate-x-0 md:flex-shrink-0 ${
-                isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-            }`}>
+
+            <aside className={`fixed top-0 left-0 h-full bg-white border-r border-slate-100 w-64 p-5 transform transition-transform duration-500 ease-in-out z-40 md:relative md:translate-x-0 md:flex-shrink-0 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+                }`}>
                 <div className="flex flex-col h-full">
-                    <div className="flex items-center mb-6 px-2 mt-1">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-md shadow-primary/30 text-white font-bold text-sm mr-2">
-                            CH
-                        </div>
-                        <div>
-                            <h1 className="text-sm font-bold text-slate-800 leading-tight">Chouhan Housing</h1>
-                            <p className="text-[10px] text-slate-500 font-medium">CRM Portal</p>
+                    {/* Premium Logo Section */}
+                    <div className="flex items-center mb-10 px-1 mt-2 group cursor-default">
+                        <img
+                            src="/ChouhanG.png"
+                            alt="Chouhan Group"
+                            className="w-12 h-12 md:w-14 md:h-14 object-contain mr-2 transform group-hover:scale-110 transition-transform duration-300"
+                        />
+                        <div className="min-w-0">
+                            <h1 className="text-xs md:text-sm font-black text-slate-900 leading-tight tracking-tighter uppercase truncate">Chouhan Housing</h1>
+                            <p className="text-[8px] md:text-[9px] text-primary font-black uppercase tracking-widest mt-0.5 whitespace-nowrap">Pvt Limited</p>
                         </div>
                     </div>
-                    
-                    <nav className="flex-1 space-y-0.5">
-                        <p className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Menu</p>
+
+                    {/* Navigation Menu */}
+                    <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
+                        <p className="px-4 text-[10px] font-black text-slate-300 uppercase tracking-[0.25em] mb-4">Main Navigation</p>
                         {visibleNavItems.map(item => (
                             <NavLink
                                 key={item.name}
@@ -88,12 +92,16 @@ const Sidebar: React.FC<{
                         ))}
                     </nav>
 
-                    <div className="mt-auto pt-4 border-t border-slate-200/60">
-                        <div className="bg-white p-2 rounded-lg shadow-sm border border-slate-100 flex items-center space-x-2">
-                            <img src={currentUser.avatarUrl} alt="Profile" className="w-8 h-8 rounded-full border border-slate-200 flex-shrink-0" />
+                    {/* Premium User Profile Section */}
+                    <div className="mt-8 pt-6 border-t border-slate-50">
+                        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center gap-3 group hover:bg-white hover:shadow-lg transition-all duration-300 cursor-pointer">
+                            <div className="relative">
+                                <img src={currentUser.avatarUrl} alt="Profile" className="w-10 h-10 rounded-xl border-2 border-white shadow-sm flex-shrink-0 group-hover:scale-110 transition-transform" />
+                                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
+                            </div>
                             <div className="overflow-hidden min-w-0 flex-1">
-                                <p className="text-xs font-bold text-slate-800 truncate">{currentUser.name}</p>
-                                <p className="text-[10px] text-slate-500 truncate">{currentUser.role}</p>
+                                <p className="text-xs font-black text-slate-800 truncate uppercase tracking-tight">{currentUser.name}</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currentUser.role === 'Admin' ? 'Director' : 'Sales Lead'}</p>
                             </div>
                         </div>
                     </div>

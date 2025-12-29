@@ -19,8 +19,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ users, onLogin }) => {
     }
     // Simple password check for demo purposes
     if (password !== 'password123') {
-        setError('Incorrect password.');
-        return;
+      setError('Incorrect password.');
+      return;
     }
     const user = users.find(u => u.id === selectedUserId);
     if (user) {
@@ -32,77 +32,77 @@ const LoginPage: React.FC<LoginPageProps> = ({ users, onLogin }) => {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-        handleLogin();
+      handleLogin();
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <div className="w-full max-w-sm p-8 space-y-8 bg-white rounded-2xl shadow-2xl border border-white/50 backdrop-blur-xl">
+    <div className="flex items-center justify-center h-screen bg-white">
+      <div className="w-full max-w-sm p-8 space-y-8 bg-white">
         <div className="text-center flex flex-col items-center">
-            <img 
-                src="https://chouhanhousing.com/wp-content/uploads/2020/06/logo.png" 
-                alt="Chouhan Group" 
-                className="h-24 w-auto mb-6 object-contain"
-            />
-            <h1 className="text-2xl font-bold text-slate-900">Welcome Back</h1>
-            <p className="mt-2 text-sm text-slate-500">Chouhan Housing CRM Portal</p>
+          <img
+            src="/ChouhanG.png"
+            alt="Chouhan Group"
+            className="h-16 md:h-20 w-auto mb-4 object-contain animate-fade-in"
+          />
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Welcome Back</h1>
+          <p className="mt-1 text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Chouhan Housing Pvt Limited</p>
         </div>
         <div className="space-y-6">
-            <div>
-                <label htmlFor="user-select" className="block text-xs font-bold text-slate-700 mb-1.5 tracking-wide uppercase">
-                    Select User
-                </label>
-                <div className="relative">
-                  <select
-                      id="user-select"
-                      value={selectedUserId}
-                      onChange={(e) => {
-                          setSelectedUserId(e.target.value);
-                          setError('');
-                      }}
-                      className="input-style appearance-none bg-white text-slate-900 border-slate-300 focus:border-blue-600"
-                      style={{ backgroundImage: 'none' }} 
-                  >
-                      <option value="" disabled>-- Select your profile --</option>
-                      {users.map((user) => (
-                          <option key={user.id} value={user.id}>
-                              {user.name} ({user.role})
-                          </option>
-                      ))}
-                  </select>
-                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-600">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                  </div>
-                </div>
+          <div>
+            <label htmlFor="user-select" className="block text-xs font-bold text-slate-700 mb-1.5 tracking-wide uppercase">
+              Select User
+            </label>
+            <div className="relative">
+              <select
+                id="user-select"
+                value={selectedUserId}
+                onChange={(e) => {
+                  setSelectedUserId(e.target.value);
+                  setError('');
+                }}
+                className="input-style appearance-none bg-white text-slate-900 border-slate-300 focus:border-blue-600"
+                style={{ backgroundImage: 'none' }}
+              >
+                <option value="" disabled>-- Select your profile --</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.role})
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-600">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+              </div>
             </div>
-             <div>
-                <label htmlFor="password-input" className="block text-xs font-bold text-slate-700 mb-1.5 tracking-wide uppercase">
-                    Password
-                </label>
-                <input
-                    id="password-input"
-                    type="password"
-                    value={password}
-                    onChange={(e) => {
-                        setPassword(e.target.value);
-                        setError('');
-                    }}
-                    onKeyPress={handleKeyPress}
-                    className="input-style bg-white text-slate-900 border-slate-300 focus:border-blue-600"
-                    placeholder="Enter password"
-                />
-                <p className="text-xs text-slate-400 mt-2 font-medium">Hint: Use 'password123'</p>
-            </div>
-            {error && <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg font-semibold text-center border border-red-100 animate-pulse">{error}</div>}
+          </div>
+          <div>
+            <label htmlFor="password-input" className="block text-xs font-bold text-slate-700 mb-1.5 tracking-wide uppercase">
+              Password
+            </label>
+            <input
+              id="password-input"
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError('');
+              }}
+              onKeyPress={handleKeyPress}
+              className="input-style bg-white text-slate-900 border-slate-300 focus:border-blue-600"
+              placeholder="Enter password"
+            />
+            <p className="text-xs text-slate-400 mt-2 font-medium">Hint: Use 'password123'</p>
+          </div>
+          {error && <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg font-semibold text-center border border-red-100 animate-pulse">{error}</div>}
         </div>
         <div>
-            <button
-                onClick={handleLogin}
-                className="w-full flex justify-center items-center py-3.5 px-6 border border-transparent rounded-xl shadow-lg shadow-blue-600/30 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform active:scale-[0.98]"
-            >
-                Login to Dashboard
-            </button>
+          <button
+            onClick={handleLogin}
+            className="w-full flex justify-center items-center py-3.5 px-6 border border-transparent rounded-xl shadow-lg shadow-blue-600/30 text-sm font-black text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform active:scale-[0.98] uppercase tracking-widest"
+          >
+            Login
+          </button>
         </div>
       </div>
     </div>

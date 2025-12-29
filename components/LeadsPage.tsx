@@ -19,8 +19,11 @@ import {
     PhoneIcon,
     CurrencyRupeeIcon,
     DocumentTextIcon,
-    CheckCircleIcon
+    CheckCircleIcon,
+    UsersIcon,
+    BellIcon
 } from './Icons';
+import { MetricCard, MetricGrid } from './MetricSection';
 
 interface LeadsPageProps {
     viewMode?: 'leads' | 'opportunities' | 'clients';
@@ -46,55 +49,73 @@ interface LeadsPageProps {
 // --- Pipeline / Kanban Components ---
 
 const PipelineCard: React.FC<{ lead: Lead, user?: User, onClick: () => void }> = ({ lead, user, onClick }) => {
+    const tempClass = useMemo(() => {
+        switch (lead.temperature) {
+            case 'Hot': return 'grad-hot shadow-red-200';
+            case 'Warm': return 'grad-warm shadow-orange-200';
+            case 'Cold': return 'grad-cold shadow-blue-200';
+            default: return 'bg-slate-100';
+        }
+    }, [lead.temperature]);
+
     return (
         <div
             onClick={onClick}
-            className="bg-white p-3 md:p-3 rounded-xl shadow-sm border border-gray-200 cursor-pointer hover:shadow-md active:scale-[0.98] transition-all group relative touch-manipulation"
+            className="glass-card p-4 rounded-xl border border-slate-200 cursor-pointer hover-lift shadow-sm group relative touch-manipulation animate-fade-in"
         >
-            <div className="flex justify-between items-start mb-2.5">
-                <h4 className="font-bold text-slate-800 text-sm md:text-sm truncate flex-1 pr-2" title={lead.customerName}>{lead.customerName}</h4>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {lead.temperature && (
-                        <span className={`w-2.5 h-2.5 rounded-full ${lead.temperature === 'Hot' ? 'bg-red-500' : lead.temperature === 'Warm' ? 'bg-orange-400' : 'bg-blue-400'}`} title={lead.temperature}></span>
+            {/* Top row with name and indicator */}
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex-1 min-w-0 pr-2">
+                    <h4 className="font-bold text-slate-800 text-sm md:text-[15px] truncate leading-tight group-hover:text-primary transition-colors" title={lead.customerName}>
+                        {lead.customerName}
+                    </h4>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mt-0.5">
+                        {lead.modeOfEnquiry}
+                    </p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0 mt-1">
+                    {!lead.isRead && (
+                        <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-sm shadow-primary/50"></div>
                     )}
-                    {!lead.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>}
+                    {lead.temperature && (
+                        <div className={`w-2 h-2 rounded-full ${tempClass} shadow-sm`} title={lead.temperature}></div>
+                    )}
                 </div>
             </div>
 
-            <div className="space-y-2 mb-3">
-                <p className="text-xs md:text-xs text-slate-600 flex items-center truncate">
-                    <MapPinIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
-                    <span className="truncate">{lead.interestedProject || 'No Project'}</span>
-                </p>
-                <p className="text-xs md:text-xs text-slate-600 flex items-center">
-                    <PhoneIcon className="w-3.5 h-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
-                    <span className="font-medium">{lead.mobile}</span>
-                </p>
-                {lead.status === LeadStatus.Contacted && lead.contactDate && (
-                    <p className="text-xs md:text-xs text-green-600 font-semibold flex items-center">
-                        <CalendarIcon className="w-3.5 h-3.5 mr-1 text-green-500" />
-                        Contacted: {new Date(lead.contactDate).toLocaleDateString()}
-                        {lead.contactDuration && <span className="text-slate-500 ml-1">({lead.contactDuration} min)</span>}
-                    </p>
-                )}
+            {/* Content body */}
+            <div className="space-y-2.5 mb-4">
+                <div className="flex items-center text-xs text-slate-600 bg-slate-50/50 p-1.5 rounded-lg border border-slate-100/50">
+                    <MapPinIcon className="w-3.5 h-3.5 mr-2 text-primary/60 flex-shrink-0" />
+                    <span className="truncate font-medium">{lead.interestedProject || 'No Project'}</span>
+                </div>
+                <div className="flex items-center text-xs text-slate-600 px-1.5">
+                    <PhoneIcon className="w-3.5 h-3.5 mr-2 text-slate-400 flex-shrink-0" />
+                    <span className="font-semibold tabular-nums">{lead.mobile}</span>
+                </div>
+
                 {lead.budget && (
-                    <p className="text-xs md:text-xs text-slate-700 font-semibold flex items-center">
-                        <CurrencyRupeeIcon className="w-3.5 h-3.5 mr-1 text-slate-500" />
-                        {lead.budget}
-                    </p>
+                    <div className="flex items-center text-xs text-emerald-700 bg-emerald-50/50 px-2 py-1 rounded-md border border-emerald-100/50 w-fit">
+                        <CurrencyRupeeIcon className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
+                        <span className="font-bold tracking-tight">{lead.budget}</span>
+                    </div>
                 )}
             </div>
 
-            <div className="border-t border-gray-100 pt-2.5 flex justify-between items-center text-[10px] md:text-[10px] text-slate-500">
-                <div className="flex items-center min-w-0">
-                    <UserCircleIcon className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
-                    <span className="truncate max-w-[100px] md:max-w-[80px]">{user?.name || 'Admin'}</span>
+            {/* Footer */}
+            <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400">
+                <div className="flex items-center min-w-0 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 shadow-inner">
+                    <UserCircleIcon className="w-3 h-3 mr-1.5 text-slate-400 group-hover:text-primary transition-colors" />
+                    <span className="truncate max-w-[80px] text-slate-500 uppercase tracking-tighter">{user?.name || 'Unassigned'}</span>
                 </div>
                 <div className="flex items-center flex-shrink-0">
-                    <CalendarIcon className="w-3.5 h-3.5 mr-1" />
-                    <span>{new Date(lead.lastActivityDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                    <CalendarIcon className="w-3 h-3 mr-1 text-slate-300" />
+                    <span className="tabular-nums">{new Date(lead.lastActivityDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                 </div>
             </div>
+
+            {/* Subtle glow effect on hover */}
+            <div className="absolute inset-0 rounded-xl bg-primary/0 group-hover:bg-primary/[0.02] pointer-events-none transition-colors duration-300"></div>
         </div>
     );
 };
@@ -192,46 +213,54 @@ const PipelineBoard: React.FC<{ leads: Lead[], users: User[], onOpenModal: (l: L
 
     return (
         <>
-            {/* Mobile View - Vertical Stacked Accordion */}
-            <div className="md:hidden space-y-3 pb-4">
+            {/* Mobile View - Premium Vertical Stacked Accordion */}
+            <div className="md:hidden space-y-4 pb-6 px-1">
                 {columns.map(col => {
                     const colLeads = leads.filter(l => col.statuses.includes(l.status));
                     const isExpanded = expandedColumns.has(col.id);
                     return (
-                        <div key={col.id} className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+                        <div key={col.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden transition-all duration-300">
                             <button
                                 onClick={() => toggleColumn(col.id)}
-                                className={`w-full p-4 ${col.bg} border-l-4 ${col.color} flex justify-between items-center transition-colors`}
+                                className={`w-full p-4 flex justify-between items-center transition-all duration-300 active:bg-slate-50 ${isExpanded ? 'bg-slate-50/50' : 'bg-white'}`}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-white/80">
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-3 rounded-xl border-2 shadow-sm transition-all duration-300 ${col.bg} ${col.color.replace('border-', 'border-')}`}>
                                         {col.icon}
                                     </div>
                                     <div className="text-left">
-                                        <h3 className="font-bold text-slate-800 text-sm">{col.title}</h3>
-                                        <p className="text-xs text-slate-500 mt-0.5">{colLeads.length} {colLeads.length === 1 ? 'deal' : 'deals'}</p>
+                                        <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest">{col.title}</h3>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-tighter">
+                                            {colLeads.length} {colLeads.length === 1 ? 'Opportunity' : 'Opportunities'}
+                                        </p>
                                     </div>
                                 </div>
-                                {isExpanded ? (
-                                    <MinusIcon className="w-5 h-5 text-slate-600" />
-                                ) : (
-                                    <PlusIcon className="w-5 h-5 text-slate-600" />
-                                )}
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-slate-900 border-slate-900' : 'bg-slate-100 border-slate-200'} border`}>
+                                    {isExpanded ? (
+                                        <MinusIcon className="w-4 h-4 text-white" />
+                                    ) : (
+                                        <PlusIcon className="w-4 h-4 text-slate-400" />
+                                    )}
+                                </div>
                             </button>
                             {isExpanded && (
-                                <div className="p-3 space-y-3 max-h-[60vh] overflow-y-auto">
+                                <div className="p-4 space-y-4 bg-slate-50/30 border-t border-slate-100 max-h-[70vh] overflow-y-auto animate-fade-in custom-scrollbar">
                                     {colLeads.length > 0 ? (
                                         colLeads.map(lead => (
-                                            <PipelineCard
-                                                key={lead.id}
-                                                lead={lead}
-                                                user={userMap.get(lead.assignedSalespersonId)}
-                                                onClick={() => onOpenModal(lead)}
-                                            />
+                                            <div key={lead.id} className="animate-fade-in">
+                                                <PipelineCard
+                                                    lead={lead}
+                                                    user={userMap.get(lead.assignedSalespersonId)}
+                                                    onClick={() => onOpenModal(lead)}
+                                                />
+                                            </div>
                                         ))
                                     ) : (
-                                        <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                                            <p className="text-sm text-gray-400">No deals in this stage</p>
+                                        <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl bg-white/50">
+                                            <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                <PlusIcon className="w-5 h-5 text-slate-300" />
+                                            </div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Stage is empty</p>
                                         </div>
                                     )}
                                 </div>
@@ -242,21 +271,45 @@ const PipelineBoard: React.FC<{ leads: Lead[], users: User[], onOpenModal: (l: L
             </div>
 
             {/* Desktop View - Horizontal Kanban */}
-            <div className="hidden md:flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-200px)] min-h-[500px] p-1">
+            <div className="hidden md:flex gap-5 overflow-x-auto pb-6 h-[calc(100vh-220px)] min-h-[500px] p-2">
                 {columns.map(col => {
                     const colLeads = leads.filter(l => col.statuses.includes(l.status));
+                    const totalValue = colLeads.reduce((acc, l) => {
+                        const amount = parseInt(l.budget?.replace(/[^\d]/g, '') || '0');
+                        return acc + amount;
+                    }, 0);
+
                     return (
-                        <div key={col.id} className="flex-shrink-0 w-80 flex flex-col rounded-xl bg-gray-50/50 border border-gray-200 shadow-sm h-full">
-                            <div className={`p-3 rounded-t-xl bg-slate-900 border-b border-gray-100 border-t-4 ${col.color} flex justify-between items-center sticky top-0 z-10`}>
-                                <div className="flex items-center gap-2">
-                                    <div className={`p-1.5 rounded-md bg-white/10`}>
-                                        {col.icon}
+                        <div key={col.id} className="flex-shrink-0 w-80 flex flex-col rounded-2xl bg-slate-50 border border-slate-200 shadow-sm h-full group/col">
+                            {/* Column Header */}
+                            <div className={`p-4 rounded-t-2xl bg-white border-b border-slate-100 flex flex-col gap-3 sticky top-0 z-10 shadow-sm transition-all group-hover/col:shadow-md`}>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`p-2 rounded-xl border transition-all duration-300 shadow-sm ${col.bg} ${col.color.replace('border-', 'border-').replace('text-', 'text-')}`}>
+                                            {col.icon}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-black text-slate-800 text-xs uppercase tracking-wider">{col.title}</h3>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{colLeads.length} Deals</p>
+                                        </div>
                                     </div>
-                                    <h3 className="font-bold text-white text-sm">{col.title}</h3>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs border-2 transition-transform duration-300 group-hover/col:scale-110 ${col.bg} ${col.color.replace('border-', 'border-').replace('text-', 'text-')}`}>
+                                        {colLeads.length}
+                                    </div>
                                 </div>
-                                <span className="bg-white/10 text-white text-xs font-bold px-2 py-1 rounded-full">{colLeads.length}</span>
+                                {totalValue > 0 && (
+                                    <div className="flex items-center justify-between px-1">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Potential:</span>
+                                        <span className="text-[10px] font-black text-emerald-600">₹ {(totalValue / 100000).toFixed(1)}L+</span>
+                                    </div>
+                                )}
+                                <div className={`h-1 w-full rounded-full bg-slate-100 overflow-hidden mt-1`}>
+                                    <div className={`h-full ${col.color.replace('border-', 'bg-')} transition-all duration-1000`} style={{ width: `${Math.min(100, (colLeads.length / leads.length) * 100 * 3)}%` }}></div>
+                                </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+
+                            {/* Column Content */}
+                            <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
                                 {colLeads.map(lead => (
                                     <PipelineCard
                                         key={lead.id}
@@ -266,8 +319,11 @@ const PipelineBoard: React.FC<{ leads: Lead[], users: User[], onOpenModal: (l: L
                                     />
                                 ))}
                                 {colLeads.length === 0 && (
-                                    <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-lg">
-                                        <p className="text-xs text-gray-400">No deals in this stage</p>
+                                    <div className="text-center py-16 px-4 border-2 border-dashed border-slate-200 rounded-2xl bg-white/50 m-2">
+                                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <PlusIcon className="w-5 h-5 text-slate-300" />
+                                        </div>
+                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Empty Stage</p>
                                     </div>
                                 )}
                             </div>
@@ -328,14 +384,14 @@ const getStatusesForViewMode = (mode: string): LeadStatus[] => {
         case 'leads':
             // Include Qualified and other common statuses that salespeople work with
             return [
-                LeadStatus.New, 
-                LeadStatus.Contacted, 
+                LeadStatus.New,
+                LeadStatus.Contacted,
                 LeadStatus.Qualified,
                 LeadStatus.SiteVisitPending,
                 LeadStatus.SiteVisitScheduled,
                 LeadStatus.SiteVisitDone,
-                LeadStatus.Lost, 
-                LeadStatus.Cancelled, 
+                LeadStatus.Lost,
+                LeadStatus.Cancelled,
                 LeadStatus.Disqualified
             ];
         case 'opportunities':
@@ -455,9 +511,10 @@ const ImportCSV: React.FC<{ onImport: Function, users: User[] }> = ({ onImport, 
     );
 };
 
-const FilterChip: React.FC<{ label: string; isActive: boolean; onClick: () => void }> = ({ label, isActive, onClick }) => (
+const FilterChip: React.FC<{ label: string; isActive: boolean; onClick: () => void; dataFilter?: string }> = ({ label, isActive, onClick, dataFilter }) => (
     <button
         onClick={onClick}
+        data-filter={dataFilter}
         className={`px-3 py-1 text-xs font-medium rounded-full transition-colors border ${isActive
             ? 'bg-primary text-white border-primary'
             : 'bg-base-100 text-muted-content border-border-color hover:bg-base-200'
@@ -482,18 +539,18 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         // Find the original lead to check if assignment changed
         const originalLead = leads.find(l => l.id === updatedLead.id);
         const adminUser = users.find(u => u.role === 'Admin');
-        const wasUnassigned = !originalLead?.assignedSalespersonId || 
-                              originalLead.assignedSalespersonId === '' || 
-                              originalLead.assignedSalespersonId === adminUser?.id;
-        const isNowAssigned = updatedLead.assignedSalespersonId && 
-                              updatedLead.assignedSalespersonId !== '' && 
-                              updatedLead.assignedSalespersonId !== adminUser?.id;
-        
+        const wasUnassigned = !originalLead?.assignedSalespersonId ||
+            originalLead.assignedSalespersonId === '' ||
+            originalLead.assignedSalespersonId === adminUser?.id;
+        const isNowAssigned = updatedLead.assignedSalespersonId &&
+            updatedLead.assignedSalespersonId !== '' &&
+            updatedLead.assignedSalespersonId !== adminUser?.id;
+
         // If lead was just assigned, switch to assigned tab
         if (wasUnassigned && isNowAssigned) {
             setActiveTab('assigned');
         }
-        
+
         // Call the original onUpdateLead
         onUpdateLead(updatedLead);
     }, [leads, onUpdateLead]);
@@ -502,12 +559,12 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
     const handleAssignLeadWithTabSwitch = useCallback((newLeadData: NewLeadData) => {
         // If the new lead has an assigned salesperson, switch to assigned tab
         const adminUser = users.find(u => u.role === 'Admin');
-        if (newLeadData.assignedSalespersonId && 
-            newLeadData.assignedSalespersonId !== '' && 
+        if (newLeadData.assignedSalespersonId &&
+            newLeadData.assignedSalespersonId !== '' &&
             newLeadData.assignedSalespersonId !== adminUser?.id) {
             setActiveTab('assigned');
         }
-        
+
         // Call the original onAssignLead
         onAssignLead(newLeadData);
     }, [onAssignLead, users]);
@@ -517,20 +574,22 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         dateRange: '',
         showUnread: false,
         showOverdue: false,
-        showVisits: false,
+        showVisitsDone: false,
+        showVisitsPlanned: false,
+        showCalls: false,
         enquiryType: '',
         source: '',
         month: '',
     });
 
     const tabs = useMemo(() => {
-    const allTabs = getTabsForViewMode(viewMode);
-    // Filter out "unassigned" and "assigned" tabs for non-admin users
-    if (currentUser.role !== 'Admin') {
-      return allTabs.filter(tab => tab.id !== 'unassigned' && tab.id !== 'assigned');
-    }
-    return allTabs;
-  }, [viewMode, currentUser]);
+        const allTabs = getTabsForViewMode(viewMode);
+        // Filter out "unassigned" and "assigned" tabs for non-admin users
+        if (currentUser.role !== 'Admin') {
+            return allTabs.filter(tab => tab.id !== 'unassigned' && tab.id !== 'assigned');
+        }
+        return allTabs;
+    }, [viewMode, currentUser]);
 
     // Reset tab when view mode changes
     useEffect(() => {
@@ -590,7 +649,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         const isAdmin = currentUser.role === 'Admin';
         const isAssignmentTab = activeTab === 'assigned' || activeTab === 'unassigned';
         const isNewTabForNonAdmin = activeTab === 'new' && !isAdmin;
-        
+
         let filtered: Lead[];
         if (isAssignmentTab || isNewTabForNonAdmin) {
             // For assignment tabs and "new" tab for non-admin users, show all leads regardless of status
@@ -643,7 +702,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         // 2.7. Handle "New Leads" tab for non-admin users - show ALL their assigned leads (all statuses)
         if (activeTab === 'new' && !isAdmin) {
             // For non-admin users, "New Leads" tab shows ALL their assigned leads regardless of status
-            filtered = filtered.filter(l => 
+            filtered = filtered.filter(l =>
                 l.assignedSalespersonId === currentUser.id
             );
         }
@@ -679,12 +738,29 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
             today.setHours(0, 0, 0, 0);
             filtered = filtered.filter(l => l.nextFollowUpDate && new Date(l.nextFollowUpDate) < today);
         }
-        if (filters.showVisits) {
-            filtered = filtered.filter(l => l.status === LeadStatus.SiteVisitScheduled);
+        if (filters.showVisitsDone) {
+            filtered = filtered.filter(l =>
+                l.status === LeadStatus.SiteVisitDone ||
+                l.visitStatus === 'Yes'
+            );
+        }
+        if (filters.showVisitsPlanned) {
+            filtered = filtered.filter(l =>
+                l.status === LeadStatus.SiteVisitScheduled ||
+                l.status === LeadStatus.SiteVisitPending ||
+                l.visitStatus === 'Planned' ||
+                l.visitStatus === 'Will Come'
+            );
+        }
+        if (filters.showCalls) {
+            // Include leads that have call activities
+            filtered = filtered.filter(l =>
+                activities.some(a => a.leadId === l.id && a.type === 'Call')
+            );
         }
 
         return filtered.sort((a, b) => new Date(b.leadDate).getTime() - new Date(a.leadDate).getTime());
-    }, [leads, viewMode, activeTab, localSearch, filters, currentUser]);
+    }, [leads, viewMode, activeTab, localSearch, filters, currentUser, activities]);
 
     const allVisibleLeadsSelected = useMemo(() => {
         if (filteredLeads.length === 0) return false;
@@ -726,9 +802,9 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         if (bulkAssignee && bulkAssignee !== '' && bulkAssignee !== adminUser?.id) {
             // Check if any of the selected leads are currently unassigned
             const selectedLeads = leads.filter(l => leadIds.includes(l.id));
-            const hasUnassigned = selectedLeads.some(l => 
-                !l.assignedSalespersonId || 
-                l.assignedSalespersonId === '' || 
+            const hasUnassigned = selectedLeads.some(l =>
+                !l.assignedSalespersonId ||
+                l.assignedSalespersonId === '' ||
                 l.assignedSalespersonId === adminUser?.id
             );
             if (hasUnassigned) {
@@ -806,47 +882,58 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
     }
 
     return (
-        <div className="p-2 md:p-3 space-y-2 md:space-y-3 h-[calc(100vh-70px)] flex flex-col overflow-hidden">
+        <div className="space-y-3 md:space-y-4 animate-fade-in">
             {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-3 shrink-0">
-                <h1 className="text-lg md:text-xl font-bold text-base-content capitalize">{getPageTitle()}</h1>
-                <div className="flex items-center gap-2 flex-wrap">
-                    {/* Enabled for all users */}
+            <div className="flex items-center justify-between gap-1.5 md:gap-4 shrink-0 relative flex-nowrap">
+                <div className="space-y-0 min-w-0 flex-1">
+                    <h1 className="text-base md:text-3xl font-black text-slate-800 tracking-tight capitalize select-none truncate">
+                        {getPageTitle()}
+                    </h1>
+                    <p className="text-[7px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
+                        {leads.length} LEADS <span className="hidden md:inline">• {users.length} TEAM</span>
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-1 md:gap-2 shrink-0">
+                    {/* Primary Action Button */}
                     <button
                         onClick={() => setShowAddLead(true)}
-                        className="flex items-center px-3 md:px-4 py-2 text-sm font-medium rounded-lg md:rounded-md transition-colors bg-primary text-white hover:bg-primary-focus shadow-sm active:scale-95 touch-manipulation"
+                        className="grad-primary flex items-center px-2 py-1.5 md:px-5 md:py-2.5 text-[8px] md:text-sm font-black rounded-lg md:rounded-xl text-white shadow-lg shadow-indigo-200 active:scale-95 touch-manipulation uppercase tracking-wider"
                     >
-                        <PlusIcon className="w-4 h-4 mr-1.5 md:mr-2" />
-                        <span className="hidden sm:inline">Add Lead</span>
-                        <span className="sm:hidden">Add</span>
+                        <PlusIcon className="w-3 h-3 md:w-5 md:h-5 mr-0.5 md:mr-2" />
+                        <span>Add</span>
                     </button>
 
-                    {isAdmin && (
-                        <ImportCSV onImport={onImportLeads} users={users} />
-                    )}
-                    <button
-                        onClick={exportToCSV}
-                        className="px-3 md:px-4 py-2 text-sm font-medium text-gray-700 border border-border-color bg-white rounded-lg md:rounded-md hover:bg-gray-50 transition-colors active:scale-95 touch-manipulation"
-                    >
-                        <span className="hidden sm:inline">Export</span>
-                        <span className="sm:hidden">Export</span>
-                    </button>
+                    <div className="flex items-center p-0.5">
+                        {isAdmin && (
+                            <div className="scale-[0.65] md:scale-100 origin-right">
+                                <ImportCSV onImport={onImportLeads} users={users} />
+                            </div>
+                        )}
+                        <button
+                            onClick={exportToCSV}
+                            className="px-2 py-1.5 text-[8px] md:text-xs font-black text-slate-500 hover:text-slate-900 transition-colors active:scale-95 uppercase tracking-tighter sm:tracking-normal"
+                        >
+                            Export
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Main Content Card */}
-            <div className="bg-white rounded-xl shadow-card border border-border-color overflow-hidden flex flex-col flex-1">
-                {/* Status Tabs - Hidden for Opportunities */}
+            {/* Main Content Area */}
+            <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                {/* Modern Floating Tabs */}
                 {viewMode !== 'opportunities' && (
-                    <div className="border-b border-border-color overflow-x-auto scrollbar-hide shrink-0">
-                        <div className="flex min-w-max px-2">
+                    <div className="px-3 md:px-4 pt-3 md:pt-4 border-b border-slate-100 bg-white sticky top-0 z-20">
+                        <div className="flex gap-1.5 md:gap-2 overflow-x-auto scrollbar-hide pb-2">
                             {tabs.map(tab => (
                                 <button
                                     key={tab.id}
+                                    data-tab-id={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-muted-content hover:text-base-content hover:border-gray-300'
+                                    className={`px-4 py-1.5 md:px-5 md:py-2 rounded-lg md:rounded-xl text-[8px] md:text-[11px] font-black uppercase tracking-wider transition-all duration-300 whitespace-nowrap ${activeTab === tab.id
+                                        ? 'bg-slate-900 text-white shadow-lg shadow-slate-200 scale-105 z-10'
+                                        : 'bg-slate-100 text-slate-400 hover:bg-slate-200/70 hover:text-slate-600'
                                         }`}
                                 >
                                     {tab.label}
@@ -857,165 +944,179 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                 )}
 
                 {/* Search and Filter Toolbar */}
-                <div className="p-2 md:p-3 border-b border-border-color flex flex-col lg:flex-row gap-2 md:gap-3 items-start lg:items-center justify-between bg-gray-50/50 shrink-0">
-                    <div className="relative w-full lg:w-96">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                            <SearchIcon className="w-4 h-4 md:w-4 md:h-4 text-gray-500" />
+                <div className="p-2 md:p-4 flex flex-col lg:flex-row gap-2 md:gap-4 items-center justify-between bg-white border-b border-slate-100 sticky top-12 z-10">
+                    <div className="relative w-full lg:w-[450px] group">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3.5">
+                            <SearchIcon className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-primary transition-colors" />
                         </span>
                         <input
                             type="text"
                             placeholder="Search leads..."
                             value={localSearch}
                             onChange={(e) => setLocalSearch(e.target.value)}
-                            className="w-full py-2.5 md:py-2 pl-10 md:pl-9 pr-4 text-sm bg-white border border-gray-300 md:border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder-gray-500 text-black touch-manipulation"
+                            className="w-full py-2 md:py-3.5 pl-10 pr-4 text-xs md:text-sm bg-white border border-slate-200 rounded-xl md:rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                         />
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                        <FilterChip label="Unread" isActive={filters.showUnread} onClick={() => setFilters(f => ({ ...f, showUnread: !f.showUnread }))} />
-                        <FilterChip label="Overdue" isActive={filters.showOverdue} onClick={() => setFilters(f => ({ ...f, showOverdue: !f.showOverdue }))} />
-                        <FilterChip label="Visits" isActive={filters.showVisits} onClick={() => setFilters(f => ({ ...f, showVisits: !f.showVisits }))} />
-
-                        <div className="h-6 w-px bg-border-color mx-1 hidden sm:block"></div>
+                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2.5 w-full lg:w-auto">
+                        <div className="flex flex-wrap gap-1 flex-1 md:flex-none">
+                            <FilterChip label="Overdue" isActive={filters.showOverdue} onClick={() => setFilters(f => ({ ...f, showOverdue: !f.showOverdue }))} />
+                            <FilterChip label="Site Done" isActive={filters.showVisitsDone} onClick={() => setFilters(f => ({ ...f, showVisitsDone: !f.showVisitsDone }))} dataFilter="visits-done" />
+                            <FilterChip label="Calls" isActive={filters.showCalls} onClick={() => setFilters(f => ({ ...f, showCalls: !f.showCalls }))} dataFilter="calls" />
+                        </div>
 
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg border transition-colors touch-manipulation active:scale-95 ${showFilters
-                                ? 'bg-blue-50 text-primary border-primary'
-                                : 'bg-white text-base-content border-border-color hover:bg-gray-50'
+                            className={`flex items-center gap-1 px-3 py-1.5 md:px-4 md:py-2.5 text-[9px] md:text-xs font-black uppercase tracking-widest rounded-lg md:rounded-xl border transition-all duration-200 touch-manipulation active:scale-95 shadow-sm ${showFilters
+                                ? 'bg-primary border-primary text-white shadow-primary/20'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                                 }`}
                         >
-                            {showFilters ? <XMarkIcon className="w-4 h-4 mr-1.5" /> : <FunnelIcon className="w-4 h-4 mr-1.5" />}
+                            <FunnelIcon className={`w-3.5 h-3.5 ${showFilters ? 'text-white' : 'text-slate-400'}`} />
                             <span className="hidden xs:inline">Filters</span>
+                            {Object.values(filters).filter(v => v !== '' && v !== false).length > 0 && (
+                                <span className={`ml-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] ${showFilters ? 'bg-white text-primary' : 'bg-primary text-white'}`}>
+                                    {Object.values(filters).filter(v => v !== '' && v !== false).length}
+                                </span>
+                            )}
                         </button>
                     </div>
                 </div>
 
                 {/* Advanced Filters Panel */}
                 {showFilters && (
-                    <div className="p-3 md:p-4 bg-gray-50 border-b border-border-color animate-in fade-in slide-in-from-top-2 duration-200 shrink-0 max-h-[50vh] overflow-y-auto">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    <div className="p-4 bg-slate-50 border-b border-slate-100 animate-fade-in shrink-0">
+                        {/* ... filter content remains same ... */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {isAdmin && (
                                 <div>
-                                    <label className="block text-xs font-semibold text-muted-content mb-1.5">Salesperson</label>
-                                    <select value={filters.salesperson} onChange={e => setFilters({ ...filters, salesperson: e.target.value })} className="filter-select w-full py-2.5 md:py-2 text-sm touch-manipulation">
+                                    <label className="label-style uppercase mb-1">Salesperson</label>
+                                    <select value={filters.salesperson} onChange={e => setFilters({ ...filters, salesperson: e.target.value })} className="input-style !py-2 !text-xs">
                                         <option value="">All Salespersons</option>
                                         {manageableUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                     </select>
                                 </div>
                             )}
                             <div>
-                                <label className="block text-xs font-semibold text-muted-content mb-1.5">Month</label>
-                                <select value={filters.month} onChange={e => setFilters({ ...filters, month: e.target.value })} className="filter-select w-full py-2.5 md:py-2 text-sm touch-manipulation">
+                                <label className="label-style uppercase mb-1">Month</label>
+                                <select value={filters.month} onChange={e => setFilters({ ...filters, month: e.target.value })} className="input-style !py-2 !text-xs">
                                     <option value="">All Months</option>
                                     {uniqueMonths.map(m => <option key={m} value={m}>{m}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-muted-content mb-1.5">Enquiry Type</label>
-                                <select value={filters.enquiryType} onChange={e => setFilters({ ...filters, enquiryType: e.target.value })} className="filter-select w-full py-2.5 md:py-2 text-sm touch-manipulation">
+                                <label className="label-style uppercase mb-1">Enquiry Type</label>
+                                <select value={filters.enquiryType} onChange={e => setFilters({ ...filters, enquiryType: e.target.value })} className="input-style !py-2 !text-xs">
                                     <option value="">All Types</option>
                                     {Object.values(ModeOfEnquiry).map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-muted-content mb-1.5">Source</label>
-                                <select value={filters.source} onChange={e => setFilters({ ...filters, source: e.target.value })} className="filter-select w-full py-2.5 md:py-2 text-sm touch-manipulation">
+                                <label className="label-style uppercase mb-1">Source</label>
+                                <select value={filters.source} onChange={e => setFilters({ ...filters, source: e.target.value })} className="input-style !py-2 !text-xs">
                                     <option value="">All Sources</option>
                                     {uniqueSources.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                            </div>
-                            <div className="flex items-end sm:col-span-2 lg:col-span-1">
-                                <button onClick={resetFilters} className="text-sm text-danger hover:underline py-2 px-2 touch-manipulation active:scale-95">Clear all filters</button>
                             </div>
                         </div>
                     </div>
                 )}
 
                 {/* Bulk Actions Bar */}
-                {selectedLeadIds.size > 0 && viewMode !== 'opportunities' && (
-                    <div className="bg-blue-50/80 backdrop-blur-sm p-3 border-b border-blue-100 flex flex-wrap items-center gap-3 sticky top-0 z-10 shrink-0">
-                        <p className="text-sm font-semibold text-primary">{selectedLeadIds.size} selected</p>
-                        <div className="h-4 w-px bg-blue-200 mx-1"></div>
-                        <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} className="text-sm py-1.5 px-3 rounded-md border-blue-200 focus:ring-primary">
-                            <option value="">Change Status...</option>
-                            {Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        {isAdmin && (
-                            <select value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)} className="text-sm py-1.5 px-3 rounded-md border-blue-200 focus:ring-primary">
-                                <option value="">Assign To...</option>
-                                {manageableUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {
+                    selectedLeadIds.size > 0 && viewMode !== 'opportunities' && (
+                        <div className="bg-blue-50/80 backdrop-blur-sm p-2.5 border-b border-blue-100 flex flex-wrap items-center gap-2 sticky top-12 z-20">
+                            <p className="text-[11px] font-black text-primary uppercase tracking-wider">{selectedLeadIds.size} SELECTED</p>
+                            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} className="text-[10px] py-1.5 px-2 rounded-lg border-blue-200 font-bold uppercase">
+                                <option value="">Status...</option>
+                                {Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
-                        )}
-                        <button onClick={handleApplyBulkAction} disabled={!bulkStatus && !bulkAssignee} className="px-3 py-1.5 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-focus disabled:opacity-50">
-                            Apply
-                        </button>
-                        <button onClick={() => setSelectedLeadIds(new Set())} className="ml-auto text-sm text-muted-content hover:text-base-content">
-                            Cancel
-                        </button>
-                    </div>
-                )}
+                            {isAdmin && (
+                                <select value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)} className="text-[10px] py-1.5 px-2 rounded-lg border-blue-200 font-bold uppercase">
+                                    <option value="">Assign To...</option>
+                                    {manageableUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                </select>
+                            )}
+                            <button onClick={handleApplyBulkAction} disabled={!bulkStatus && !bulkAssignee} className="px-3 py-1.5 text-[10px] font-black text-white bg-primary rounded-lg uppercase tracking-widest disabled:opacity-50">
+                                Apply
+                            </button>
+                        </div>
+                    )
+                }
 
                 {/* Main View Area */}
-                {viewMode === 'opportunities' ? (
-                    <div className="flex-1 overflow-y-auto bg-slate-100/50 p-2 md:p-4">
+                <div className="bg-white">
+                    {viewMode === 'opportunities' ? (
                         <PipelineBoard leads={filteredLeads} users={users} onOpenModal={handleOpenModal} />
-                    </div>
-                ) : (
-                    <div className="flex-1 overflow-y-auto">
-                        <LeadsTable
-                            leads={filteredLeads}
-                            users={users}
-                            onOpenModal={handleOpenModal}
-                            selectedLeadIds={selectedLeadIds}
-                            onSelectLead={handleSelectLead}
-                            onSelectAll={handleSelectAll}
-                            allVisibleLeadsSelected={allVisibleLeadsSelected}
-                        />
-                        <div className="p-3 md:p-3 border-t border-border-color bg-gray-50 text-xs text-center text-muted-content sticky bottom-0">
-                            Showing {filteredLeads.length} {filteredLeads.length === 1 ? 'item' : 'items'} based on current filters.
+                    ) : (
+                        <div>
+                            <LeadsTable
+                                leads={filteredLeads}
+                                users={users}
+                                onOpenModal={handleOpenModal}
+                                selectedLeadIds={selectedLeadIds}
+                                onSelectLead={handleSelectLead}
+                                onSelectAll={handleSelectAll}
+                                allVisibleLeadsSelected={allVisibleLeadsSelected}
+                            />
+                            <div className="p-3 border-t border-slate-100 bg-slate-50/50 text-[10px] font-black text-center text-slate-400 tracking-widest uppercase">
+                                Showing {filteredLeads.length} items based on current filters.
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* Add Lead Modal */}
-            {showAddLead && (
-                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                    <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowAddLead(false)}></div>
-                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                        <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                            <AssignLeadForm
-                                users={users}
-                                currentUser={currentUser}
-                                onAssignLead={(data) => {
-                                    handleAssignLeadWithTabSwitch(data);
-                                    setShowAddLead(false);
-                                }}
-                                onCancel={() => setShowAddLead(false)}
-                            />
+            {
+                showAddLead && (
+                    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                        <div className="flex items-start md:items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                            {/* Backdrop with explicit rgba fallback to prevent black screen */}
+                            <div
+                                className="fixed inset-0 bg-black/50 transition-opacity"
+                                aria-hidden="true"
+                                onClick={() => setShowAddLead(false)}
+                                style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                            ></div>
+
+                            {/* Centering trick */}
+                            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                            <div className="inline-block align-top md:align-middle bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-4xl sm:w-full max-h-[95vh] overflow-y-auto relative z-10 w-full mx-auto">
+                                <AssignLeadForm
+                                    users={users}
+                                    currentUser={currentUser}
+                                    onAssignLead={(data) => {
+                                        handleAssignLeadWithTabSwitch(data);
+                                        setShowAddLead(false);
+                                    }}
+                                    onCancel={() => setShowAddLead(false)}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {selectedLead && (
-                <LeadDetailModal
-                    lead={selectedLead}
-                    onClose={handleCloseModal}
-                    users={users}
-                    onUpdateLead={handleUpdateLeadWithTabSwitch}
-                    onAddActivity={onAddActivity}
-                    onDeleteActivity={onDeleteActivity}
-                    currentUser={currentUser}
-                    activities={activities.filter(a => a.leadId === selectedLead.id)}
-                    onAddTask={onAddTask}
-                    onDeleteLead={onDeleteLead}
-                    projects={projects} // Pass inventory
-                />
-            )}
-        </div>
+            {
+                selectedLead && (
+                    <LeadDetailModal
+                        lead={selectedLead}
+                        onClose={handleCloseModal}
+                        users={users}
+                        onUpdateLead={handleUpdateLeadWithTabSwitch}
+                        onAddActivity={onAddActivity}
+                        onDeleteActivity={onDeleteActivity}
+                        currentUser={currentUser}
+                        activities={activities.filter(a => a.leadId === selectedLead.id)}
+                        onAddTask={onAddTask}
+                        onDeleteLead={onDeleteLead}
+                        projects={projects} // Pass inventory
+                    />
+                )
+            }
+        </div >
     );
 };
 

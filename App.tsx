@@ -35,8 +35,14 @@ export interface NewLeadData {
 }
 
 const LoadingSpinner: React.FC = () => (
-  <div className="flex justify-center items-center h-full min-h-[50vh] bg-base-200">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+  <div className="flex flex-col justify-center items-center h-full min-h-[50vh] bg-slate-50/50">
+    <div className="relative">
+      <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200 border-t-primary shadow-xl shadow-indigo-100"></div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-2 h-2 bg-primary rounded-full animate-ping"></div>
+      </div>
+    </div>
+    <p className="mt-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse">Initializing CRM...</p>
   </div>
 );
 
@@ -45,39 +51,40 @@ const NotificationToast: React.FC<{ message: string; onClose: () => void }> = ({
   const isAssignment = message.includes('Lead Assigned');
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-sm w-full bg-white border-l-4 border-primary shadow-2xl rounded-lg pointer-events-auto animate-in slide-in-from-top-2 duration-300">
-      <div className="p-4">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
+    <div className="fixed top-8 right-8 z-[100] max-w-sm w-full glass shadow-2xl rounded-2xl border border-white/50 animate-fade-in pointer-events-auto">
+      <div className="p-5">
+        <div className="flex items-start gap-4">
+          <div className={`p-2.5 rounded-xl shadow-sm ${isNewLead ? 'bg-emerald-50 text-emerald-600' : isAssignment ? 'bg-indigo-50 text-indigo-600' : 'bg-primary/10 text-primary'}`}>
             {isNewLead ? (
-              <svg className="h-6 w-6 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
               </svg>
             ) : isAssignment ? (
-              <svg className="h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             ) : (
-              <svg className="h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             )}
           </div>
-          <div className="ml-3 w-0 flex-1 pt-0.5">
-            <p className="text-sm font-bold text-gray-900">
-              {isNewLead ? 'New Lead' : isAssignment ? 'Lead Assigned' : 'Notification'}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
+              {isNewLead ? 'New Opportunity' : isAssignment ? 'Lead Assigned' : 'Notification'}
             </p>
-            <p className="mt-1 text-sm text-gray-700">{message}</p>
+            <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">{message}</p>
           </div>
-          <div className="ml-4 flex-shrink-0 flex">
-            <button onClick={onClose} className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
-              <span className="sr-only">Close</span>
-              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </div>
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-all">
+            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
+      </div>
+      <div className="h-1 bg-slate-100 rounded-b-2xl overflow-hidden">
+        <div className="h-full bg-primary/30 animate-pulse" style={{ width: '40%' }}></div>
       </div>
     </div>
   );
@@ -108,7 +115,7 @@ const App: React.FC = () => {
       try {
         const backendLeads = await api.getLeads();
         console.log('📥 Fetched leads from backend:', backendLeads.length);
-        
+
         // Check for specific notification lead IDs that should be assigned
         const notificationLeadIds = ['44cbebb7-b6a3-408b-91b1-ed7a799fca10', 'bffdecec-4693-45a1-b2f6-fb147f6e6ed4'];
         notificationLeadIds.forEach(notifLeadId => {
@@ -125,11 +132,11 @@ const App: React.FC = () => {
             console.log(`   ❌ [BACKEND] Notification lead ${notifLeadId}: NOT FOUND in backend response`);
           }
         });
-        
+
         // Log assignment info for debugging
         if (currentUser) {
           console.log(`👤 Current user: ${currentUser.name} (ID: ${currentUser.id}, Type: ${typeof currentUser.id}, Role: ${currentUser.role})`);
-          
+
           if (currentUser.role !== 'Admin') {
             // Check all assigned leads
             const allAssigned = backendLeads.filter(l => l.assignedSalespersonId != null && l.assignedSalespersonId !== '');
@@ -143,7 +150,7 @@ const App: React.FC = () => {
                 matches: l.assignedSalespersonId === currentUser.id
               })));
             }
-            
+
             const myLeads = backendLeads.filter(l => {
               const matches = l.assignedSalespersonId === currentUser.id;
               return matches;
@@ -170,7 +177,7 @@ const App: React.FC = () => {
 
           // Process backend leads: normalize and save to local database
           const processedLeads: Lead[] = [];
-          
+
           for (const backendLead of backendLeads) {
             // Check if lead exists in local database (by ID or mobile)
             const existingLocalLead = localData.leads.find(l =>
@@ -239,11 +246,11 @@ const App: React.FC = () => {
         if (backendUsers && backendUsers.length > 0) {
           console.log('✅ Loaded users from Supabase:', backendUsers.length, backendUsers.map(u => ({ id: u.id, name: u.name })));
           setUsers(backendUsers);
-          
+
           // Also save to local DB for offline access and update ID references
           const localData = await db.getAllData();
           const userIdMap = new Map<string, string>();
-          
+
           for (const user of backendUsers) {
             const existingUser = localData.users.find(u => u.id === user.id || u.name === user.name);
             if (!existingUser) {
@@ -259,12 +266,12 @@ const App: React.FC = () => {
               localData.users[index] = user;
             }
           }
-          
+
           // Update all user ID references in the database
           if (userIdMap.size > 0) {
             await db.updateUserIds(userIdMap);
           }
-          
+
           await db.saveAllData(localData);
         } else {
           // No users in Supabase, sync local users
@@ -275,13 +282,13 @@ const App: React.FC = () => {
               console.log('📤 Syncing', localData.users.length, 'users to Supabase...');
               const syncResult = await api.syncUsers(localData.users);
               console.log('✅ Synced users to Supabase:', syncResult.synced, 'users');
-              
+
               // Reload users from Supabase to get UUIDs
               const syncedUsers = await api.getUsers();
               if (syncedUsers && syncedUsers.length > 0) {
                 console.log('✅ Reloaded users from Supabase after sync:', syncedUsers.length, syncedUsers.map(u => ({ id: u.id, name: u.name })));
                 setUsers(syncedUsers);
-                
+
                 // Create a mapping from local IDs to Supabase UUIDs
                 const userIdMap = new Map<string, string>();
                 const updatedLocalData = await db.getAllData();
@@ -292,12 +299,12 @@ const App: React.FC = () => {
                     console.log(`🔄 Mapping user ${localUser.name}: ${localUser.id} -> ${supabaseUser.id}`);
                   }
                 }
-                
+
                 // Update all user ID references in the database (leads, activities, tasks, etc.)
                 if (userIdMap.size > 0) {
                   await db.updateUserIds(userIdMap);
                 }
-                
+
                 // Update users array in local DB
                 for (const supabaseUser of syncedUsers) {
                   const localUser = updatedLocalData.users.find(u => u.name === supabaseUser.name);
@@ -326,7 +333,7 @@ const App: React.FC = () => {
         const localData = await db.getAllData();
         setUsers(localData.users);
       }
-      
+
       // Log final users state for debugging (check what was actually set)
       setTimeout(() => {
         console.log('👥 Users state after load:', users.length, 'users');
@@ -436,7 +443,17 @@ const App: React.FC = () => {
           if (firstNotif.type === 'new_lead') {
             notificationMessage = `🎯 New Lead: ${firstNotif.leadData?.customerName || 'Unknown'}`;
           } else if (firstNotif.type === 'lead_assigned') {
-            notificationMessage = `📋 Lead Assigned: ${firstNotif.leadData?.customerName || 'Unknown'}`;
+            // Find the assignee name from our users list
+            const assignee = users.find(u => u.id === firstNotif.targetUserId);
+            const assigneeName = assignee ? assignee.name : 'someone';
+            const customerName = firstNotif.leadData?.customerName || 'Unknown';
+
+            // If the current user is the one assigned, use "You"
+            if (currentUser && firstNotif.targetUserId === currentUser.id) {
+              notificationMessage = `📋 Lead Assigned to You: ${customerName}`;
+            } else {
+              notificationMessage = `📋 Lead Assigned to ${assigneeName}: ${customerName}`;
+            }
           } else {
             notificationMessage = firstNotif.message || 'New notification';
           }
@@ -538,21 +555,21 @@ const App: React.FC = () => {
         bookingStatus: updatedLead.bookingStatus,
         isRead: updatedLead.isRead
       };
-      
+
       // IMPORTANT: Always include assignedSalespersonId (even if null for unassigned)
       // This ensures assignments and unassignments are properly saved
       updatePayload.assignedSalespersonId = updatedLead.assignedSalespersonId ?? null;
-      
+
       console.log('📤 Sending update to backend:', {
         leadId: updatedLead.id,
         customerName: updatedLead.customerName,
         assignedSalespersonId: updatePayload.assignedSalespersonId,
         updatePayloadKeys: Object.keys(updatePayload)
       });
-      
+
       const backendResponse = await api.updateLead(updatedLead.id, updatePayload);
       console.log('✅ Lead updated in backend:', updatedLead.id, 'assigned to:', updatedLead.assignedSalespersonId);
-      
+
       // CRITICAL: Use the response from backend to update state (it has the actual saved data from Supabase)
       if (backendResponse && backendResponse.lead) {
         const backendLead = backendResponse.lead;
@@ -562,7 +579,7 @@ const App: React.FC = () => {
           assignedSalespersonId: backendLead.assignedSalespersonId,
           assignedIdType: typeof backendLead.assignedSalespersonId
         });
-        
+
         // Update state with the backend response (source of truth)
         setLeads(prevLeads =>
           prevLeads.map(l =>
@@ -571,10 +588,10 @@ const App: React.FC = () => {
               : l
           )
         );
-        
+
         // Update local DB with backend response
         await db.updateLead(backendLead);
-        
+
         // Update the updatedLead variable for activity logging
         updatedLead = backendLead;
       } else {
@@ -612,21 +629,21 @@ const App: React.FC = () => {
       });
       // Extract error message from API response
       const errorMessage = e?.response?.message || e?.response?.error || e?.message || 'Unknown error';
-      
+
       // Check if error is due to local user ID not being synced or users table missing
       const isLocalIdError = errorMessage.includes('local ID') || errorMessage.includes('hasn\'t been synced');
       const isUsersTableMissing = errorMessage.includes('Could not find the table') || errorMessage.includes('users');
-      
+
       if ((isLocalIdError || isUsersTableMissing) && updatedLead.assignedSalespersonId) {
         // Check if it's a local ID
         const isLocalId = /^(user-|admin-)\d+$/.test(updatedLead.assignedSalespersonId);
-        
+
         if (isLocalId || isUsersTableMissing) {
           setNotification(`❌ Cannot assign lead: The users table doesn't exist in Supabase. Please create it first by running the SQL from backend/migrations/create_users_table.sql in your Supabase SQL Editor, then refresh the app.`);
           setTimeout(() => setNotification(null), 10000);
           return;
         }
-        
+
         // Try to sync users automatically
         console.log('🔄 Attempting to sync users automatically...');
         try {
@@ -634,12 +651,12 @@ const App: React.FC = () => {
           if (localData.users && localData.users.length > 0) {
             const syncResult = await api.syncUsers(localData.users);
             console.log('✅ Users synced:', syncResult.synced);
-            
+
             // Reload users from Supabase
             const syncedUsers = await api.getUsers();
             if (syncedUsers && syncedUsers.length > 0) {
               setUsers(syncedUsers);
-              
+
               // Create mapping and update all user ID references
               const userIdMap = new Map<string, string>();
               for (const supabaseUser of syncedUsers) {
@@ -648,7 +665,7 @@ const App: React.FC = () => {
                   userIdMap.set(localUser.id, supabaseUser.id);
                 }
               }
-              
+
               if (userIdMap.size > 0) {
                 await db.updateUserIds(userIdMap);
                 // Reload data after ID migration
@@ -656,13 +673,13 @@ const App: React.FC = () => {
                 localData.users = refreshedData.users;
                 localData.leads = refreshedData.leads;
               }
-              
+
               // Find the Supabase UUID for the user we tried to assign
               const localUserId = updatedLead.assignedSalespersonId;
               const localUser = localData.users.find(u => u.id === localUserId);
-              const supabaseUser = syncedUsers.find(u => u.name === localUser?.name) || 
-                                  syncedUsers.find(u => userIdMap.get(localUserId) === u.id);
-              
+              const supabaseUser = syncedUsers.find(u => u.name === localUser?.name) ||
+                syncedUsers.find(u => userIdMap.get(localUserId) === u.id);
+
               if (supabaseUser) {
                 console.log(`✅ Found Supabase UUID for ${localUser?.name || 'user'}: ${supabaseUser.id}`);
                 // Retry the assignment with Supabase UUID
@@ -670,7 +687,7 @@ const App: React.FC = () => {
                   ...updatedLead,
                   assignedSalespersonId: supabaseUser.id
                 };
-                
+
                 try {
                   const retryPayload: any = {
                     status: retryLead.status,
@@ -683,7 +700,7 @@ const App: React.FC = () => {
                     isRead: retryLead.isRead,
                     assignedSalespersonId: supabaseUser.id
                   };
-                  
+
                   const retryResponse = await api.updateLead(retryLead.id, retryPayload);
                   if (retryResponse && retryResponse.lead) {
                     const backendLead = retryResponse.lead;
@@ -713,38 +730,54 @@ const App: React.FC = () => {
           }
         }
       }
-      
+
       // Revert optimistic update on error
+      // Revert optimistic update on error - DISABLED to allow local-only mode
+      /* 
       if (originalLeadForRollback) {
         setLeads(prevLeads =>
           prevLeads.map(l =>
             l.id === updatedLead.id ? originalLeadForRollback : l
           )
         );
-        
+
         // Revert local DB update
         await db.updateLead(originalLeadForRollback);
       }
-      
+      */
+
       // Show error to user with more details
-      setNotification(`❌ Failed to assign lead: ${errorMessage}`);
-      setTimeout(() => setNotification(null), 8000);
+      // Show error to user with more details ONLY if it's a critical failure
+      // For now, if we are in dev/demo mode, we might want to suppress this if local update worked
+      console.error(`Backend update failed: ${errorMessage}`);
+
+      // If we are falling back to local DB, don't show error to user as "Failed"
+      // unless it's a critical data loss scenario.
+      // setNotification(`❌ Failed to assign lead: ${errorMessage}`);
+      // setTimeout(() => setNotification(null), 8000);
+
+      setNotification(`⚠️ Saved locally (Backend sync failed: ${errorMessage})`);
+      setTimeout(() => setNotification(null), 5000);
     }
 
     // 1. Handle Reassignment
     if (originalLead && originalLead.assignedSalespersonId !== updatedLead.assignedSalespersonId) {
       const newAssignee = users.find(u => u.id === updatedLead.assignedSalespersonId);
+      const assignmentMessage = updatedLead.assignedSalespersonId
+        ? `Lead assigned to ${newAssignee?.name || 'an agent'}.`
+        : `Lead unassigned.`;
+
       const activity: Activity = {
         id: `act-assign-${Date.now()}`,
         leadId: updatedLead.id,
         salespersonId: currentUser.id,
-        type: ActivityType.Note,
+        type: ActivityType.Note, // Keep as Note, or use a custom 'Assignment' type if supported
         date: new Date().toISOString(),
-        remarks: `Lead assigned to ${newAssignee?.name || 'N/A'}.`,
+        remarks: assignmentMessage,
         customerName: updatedLead.customerName
       };
-      await db.addActivity(activity);
-      setActivities(prev => [activity, ...prev]);
+      // Use the helper to add activity consistently
+      handleAddActivity(updatedLead, activity.type, activity.remarks);
     }
 
     // 2. Handle Booking Logic (If bookedUnitId is present and new)
@@ -753,7 +786,7 @@ const App: React.FC = () => {
         await db.bookUnit(updatedLead.bookedUnitId);
         const updatedInventory = await db.getInventory();
         setInventory(updatedInventory);
-        
+
         // Log booking activity
         const bookingActivity: Activity = {
           id: `act-book-${Date.now()}`,
@@ -923,7 +956,7 @@ const App: React.FC = () => {
   const handleUpdateTask = useCallback(async (taskId: string, updates: Partial<Task>) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    
+
     const updatedTask = { ...task, ...updates };
     await db.updateTask(updatedTask);
     setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
@@ -1015,15 +1048,15 @@ const App: React.FC = () => {
       console.log('⚠️ No current user, returning empty leads');
       return [];
     }
-    
+
     if (currentUser.role === 'Admin') {
       console.log(`👑 Admin user - showing all ${leads.length} leads`);
       return leads;
     }
-    
+
     console.log(`🔍 [VISIBLE LEADS] Filtering for user: ${currentUser.name} (${currentUser.id})`);
     console.log(`   Total leads in system: ${leads.length}`);
-    
+
     // Show all assigned leads for debugging
     const allAssignedLeads = leads.filter(l => {
       const aid = l.assignedSalespersonId;
@@ -1040,19 +1073,19 @@ const App: React.FC = () => {
         assignedIdType: typeof l.assignedSalespersonId
       })));
     }
-    
+
     // Filter leads assigned to current user
     const filtered = leads.filter(lead => {
       const assignedId = lead.assignedSalespersonId;
       // Explicitly check: must be a non-empty string AND match current user ID
       // null, undefined, and '' are all considered "unassigned"
       const matches = assignedId != null && assignedId !== '' && assignedId === currentUser.id;
-      
+
       return matches;
     });
-    
+
     console.log(`👤 User ${currentUser.name} (${currentUser.id}) - Visible leads: ${filtered.length} out of ${leads.length} total`);
-    
+
     // Check for specific lead IDs from notifications
     const notificationLeadIds = ['44cbebb7-b6a3-408b-91b1-ed7a799fca10', 'bffdecec-4693-45a1-b2f6-fb147f6e6ed4'];
     notificationLeadIds.forEach(notifLeadId => {
@@ -1070,7 +1103,7 @@ const App: React.FC = () => {
         console.log(`   ❌ Notification lead ${notifLeadId}: NOT FOUND in leads array`);
       }
     });
-    
+
     if (filtered.length > 0) {
       console.log('   ✅ Visible lead IDs:', filtered.map(l => ({ id: l.id, customer: l.customerName, assignedId: l.assignedSalespersonId })));
       // Show detailed info for visible leads
@@ -1081,7 +1114,7 @@ const App: React.FC = () => {
       // Show why no leads are visible - more detailed debugging
       console.log('   ⚠️ No leads visible for this user');
       console.log('   Checking all leads for assignment issues...');
-      
+
       // Check all leads and their assigned IDs
       leads.slice(0, 10).forEach((lead, idx) => {
         console.log(`   Lead ${idx + 1}:`, {
@@ -1094,7 +1127,7 @@ const App: React.FC = () => {
           currentUserIdType: typeof currentUser.id
         });
       });
-      
+
       const assignedLeads = leads.filter(l => l.assignedSalespersonId != null && l.assignedSalespersonId !== '');
       console.log('   Total assigned leads in system:', assignedLeads.length);
       if (assignedLeads.length > 0) {
@@ -1112,7 +1145,7 @@ const App: React.FC = () => {
         console.log('   ❌ No leads are assigned to anyone in the system');
       }
     }
-    
+
     return filtered;
   }, [currentUser, leads]);
 
@@ -1144,7 +1177,7 @@ const App: React.FC = () => {
 
     switch (activeView) {
       case 'Dashboard':
-        Content = <Dashboard leads={visibleLeads} activities={activities} projects={inventory} {...commonProps} />;
+        Content = <Dashboard leads={visibleLeads} activities={activities} tasks={visibleTasks} projects={inventory} {...commonProps} />;
         break;
       case 'Leads':
       case 'Opportunities':
@@ -1213,7 +1246,7 @@ const App: React.FC = () => {
         />;
         break;
       default:
-        Content = <Dashboard leads={visibleLeads} activities={activities} projects={inventory} {...commonProps} />;
+        Content = <Dashboard leads={visibleLeads} activities={activities} tasks={visibleTasks} projects={inventory} {...commonProps} />;
     }
 
     return (
@@ -1255,8 +1288,8 @@ const App: React.FC = () => {
           onResultClick={handleSearchResultClick}
           onNavigate={setActiveView}
         />
-        <main className="flex-1 overflow-y-auto">
-          <div className="container mx-auto p-4 md:p-6 pb-24 md:pb-6">
+        <main className="flex-1 overflow-y-auto relative bg-white min-h-0">
+          <div className="flex flex-col p-1.5 sm:p-2 md:p-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full">
             {renderView()}
           </div>
         </main>

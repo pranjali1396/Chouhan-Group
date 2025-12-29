@@ -1,9 +1,15 @@
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { supabase } from './supabaseClient.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -74,17 +80,17 @@ app.get('/api/v1/leads', async (req, res) => {
         .from('leads')
         .select('*')
         .order('lead_date', { ascending: false });
-      
+
       // Debug: Log assigned leads
       if (data && data.length > 0) {
         const assignedLeads = data.filter(l => l.assigned_salesperson_id);
         console.log(`📥 [GET LEADS] Fetched ${data.length} leads from Supabase`);
         console.log(`   Assigned leads: ${assignedLeads.length}`);
         if (assignedLeads.length > 0) {
-          console.log(`   Assigned lead IDs:`, assignedLeads.map(l => ({ 
-            id: l.id, 
-            customer: l.customer_name, 
-            assignedTo: l.assigned_salesperson_id 
+          console.log(`   Assigned lead IDs:`, assignedLeads.map(l => ({
+            id: l.id,
+            customer: l.customer_name,
+            assignedTo: l.assigned_salesperson_id
           })));
         }
       }
@@ -203,15 +209,15 @@ app.put('/api/v1/leads/:id', async (req, res) => {
       last_remark: payload.lastRemark || payload.remarks || null,
       // IMPORTANT: Preserve assigned_salesperson_id value - use null only if explicitly null/undefined
       // If it's an empty string, we should keep it as null (unassigned)
-      assigned_salesperson_id: payload.assignedSalespersonId && payload.assignedSalespersonId !== '' 
-        ? payload.assignedSalespersonId 
+      assigned_salesperson_id: payload.assignedSalespersonId && payload.assignedSalespersonId !== ''
+        ? payload.assignedSalespersonId
         : null,
       booking_status: payload.bookingStatus || null,
       // booked_project / booked_unit_* are not in current Supabase schema, so we skip them here
       is_read: payload.isRead ?? false,
       last_activity_date: new Date().toISOString()
     };
-    
+
     // Debug: Log assignment updates
     if (payload.assignedSalespersonId !== undefined) {
       console.log(`📝 Updating lead ${id} assignment:`, {
@@ -225,8 +231,8 @@ app.put('/api/v1/leads/:id', async (req, res) => {
     // Don't remove it even if it's null (null means unassign)
     if (payload.assignedSalespersonId !== undefined) {
       // Ensure it's in updateData (it should already be, but double-check)
-      updateData.assigned_salesperson_id = payload.assignedSalespersonId && payload.assignedSalespersonId !== '' 
-        ? payload.assignedSalespersonId 
+      updateData.assigned_salesperson_id = payload.assignedSalespersonId && payload.assignedSalespersonId !== ''
+        ? payload.assignedSalespersonId
         : null;
       console.log(`📝 [UPDATE LEAD] Lead ${id}:`, {
         receivedAssignedId: payload.assignedSalespersonId,
@@ -243,28 +249,29 @@ app.put('/api/v1/leads/:id', async (req, res) => {
     Object.keys(updateData).forEach(
       key => updateData[key] === undefined && delete updateData[key]
     );
-    
+
     // Final check: ensure assigned_salesperson_id is in updateData if it was in payload
     if (payload.assignedSalespersonId !== undefined && !('assigned_salesperson_id' in updateData)) {
       console.error(`❌ CRITICAL: assigned_salesperson_id was removed from updateData! Re-adding it.`);
-      updateData.assigned_salesperson_id = payload.assignedSalespersonId && payload.assignedSalespersonId !== '' 
-        ? payload.assignedSalespersonId 
+      updateData.assigned_salesperson_id = payload.assignedSalespersonId && payload.assignedSalespersonId !== ''
+        ? payload.assignedSalespersonId
         : null;
     }
 
     let updatedLead = null;
     let previousAssigneeId = null;
     let newAssigneeId = updateData.assigned_salesperson_id || null;
+    let newAssigneeName = null;
 
     // 1. Try to update in Supabase
     if (supabase) {
       // Validate and resolve user ID if trying to assign
       if (updateData.assigned_salesperson_id && updateData.assigned_salesperson_id !== null) {
         let resolvedUserId = updateData.assigned_salesperson_id;
-        
+
         // Check if it's a local ID (like user-1, admin-0) or a UUID
         const isLocalId = /^(user-|admin-)\d+$/.test(updateData.assigned_salesperson_id);
-        
+
         if (isLocalId) {
           // Try to find user by local_id column first (if it exists)
           let userByLocalId = null;
@@ -279,10 +286,11 @@ app.put('/api/v1/leads/:id', async (req, res) => {
             // local_id column might not exist, that's ok
             console.log('   local_id column may not exist, will try name-based lookup');
           }
-          
+
           if (userByLocalId) {
             resolvedUserId = userByLocalId.id;
-            console.log(`✅ Mapped local ID ${updateData.assigned_salesperson_id} to Supabase UUID ${resolvedUserId}`);
+            newAssigneeName = userByLocalId.name;
+            console.log(`✅ Mapped local ID ${updateData.assigned_salesperson_id} to Supabase UUID ${resolvedUserId} (${newAssigneeName})`);
           } else {
             // Fallback: Try to get user name from payload or look up by common patterns
             // Since we don't have user name in payload, we need to sync users first
@@ -307,7 +315,7 @@ app.put('/api/v1/leads/:id', async (req, res) => {
             .select('id, name')
             .eq('id', updateData.assigned_salesperson_id)
             .single();
-          
+
           if (userCheckError || !userExists) {
             console.error(`❌ User ${updateData.assigned_salesperson_id} not found in users table`);
             console.error('   Error:', userCheckError?.message);
@@ -318,9 +326,10 @@ app.put('/api/v1/leads/:id', async (req, res) => {
             });
           }
           resolvedUserId = userExists.id;
-          console.log(`✅ Verified user exists: ${userExists.name} (${resolvedUserId})`);
+          newAssigneeName = userExists.name;
+          console.log(`✅ Verified user exists: ${newAssigneeName} (${resolvedUserId})`);
         }
-        
+
         // Update the assignment with the resolved UUID
         updateData.assigned_salesperson_id = resolvedUserId;
         newAssigneeId = resolvedUserId;
@@ -352,7 +361,7 @@ app.put('/api/v1/leads/:id', async (req, res) => {
         // Will fall back to in-memory update below
       } else {
         previousAssigneeId = currentLead.assigned_salesperson_id || null;
-      
+
         if (updateData.assigned_salesperson_id) {
           console.log(`🔄 [ASSIGNMENT] Lead ${id} (${currentLead.customer_name || 'Unknown'}):`, {
             previousAssignee: previousAssigneeId,
@@ -366,14 +375,14 @@ app.put('/api/v1/leads/:id', async (req, res) => {
         if ('assigned_salesperson_id' in updateData) {
           console.log(`   assigned_salesperson_id value: ${updateData.assigned_salesperson_id} (type: ${typeof updateData.assigned_salesperson_id})`);
         }
-        
+
         const { data, error } = await supabase
           .from('leads')
           .update(updateData)
           .eq('id', id)
           .select('*')
           .single();
-        
+
         // Log the response immediately
         if (data) {
           console.log(`✅ Supabase update response received for lead ${id}`);
@@ -385,7 +394,7 @@ app.put('/api/v1/leads/:id', async (req, res) => {
           console.error('   Error code:', error.code);
           console.error('   Error details:', JSON.stringify(error, null, 2));
           console.error('   Update data that failed:', JSON.stringify(updateData, null, 2));
-          
+
           // Check for foreign key constraint violation
           if (error.code === '23503' || error.message?.includes('foreign key') || error.message?.includes('violates foreign key constraint')) {
             return res.status(400).json({
@@ -395,7 +404,7 @@ app.put('/api/v1/leads/:id', async (req, res) => {
               details: error.message
             });
           }
-          
+
           // Return other Supabase errors with clear message
           return res.status(500).json({
             success: false,
@@ -410,11 +419,11 @@ app.put('/api/v1/leads/:id', async (req, res) => {
             console.log(`✅ Lead ${id} assigned to user ${updateData.assigned_salesperson_id} in Supabase`);
             console.log(`   Customer: ${updatedLead.customer_name || 'Unknown'}`);
             console.log(`   Assigned ID in DB after update: ${updatedLead.assigned_salesperson_id}`);
-            
+
             // CRITICAL: Verify the assignment was actually saved
             const assignmentMatches = updatedLead.assigned_salesperson_id === updateData.assigned_salesperson_id;
             console.log(`   ✅ Assignment verification: ${assignmentMatches ? 'SUCCESS' : 'FAILED - MISMATCH!'}`);
-            
+
             if (!assignmentMatches) {
               console.error(`   ❌ CRITICAL: Assignment mismatch! Expected: ${updateData.assigned_salesperson_id}, Got: ${updatedLead.assigned_salesperson_id}`);
               // Don't create notification if assignment didn't actually save
@@ -426,7 +435,7 @@ app.put('/api/v1/leads/:id', async (req, res) => {
                 .select('assigned_salesperson_id, customer_name')
                 .eq('id', id)
                 .single();
-              
+
               if (verifyError) {
                 console.error(`   ❌ Verification fetch failed: ${verifyError.message}`);
                 updatedLead = null; // Prevent notification if we can't verify
@@ -514,18 +523,22 @@ app.put('/api/v1/leads/:id', async (req, res) => {
     // Create notification if lead was assigned AND update was successful
     // Only create notification if we have a valid updatedLead (meaning update succeeded)
     // AND the assignment actually matches what we tried to set
-    const assignmentVerified = updatedLead && 
-                               newAssigneeId && 
-                               newAssigneeId !== previousAssigneeId &&
-                               updatedLead.assigned_salesperson_id === newAssigneeId;
-    
+    const assignmentVerified = updatedLead &&
+      newAssigneeId &&
+      newAssigneeId !== previousAssigneeId &&
+      updatedLead.assigned_salesperson_id === newAssigneeId;
+
     if (assignmentVerified) {
       const customerName = updatedLead.customer_name || 'Unknown';
       const notificationId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const assignMessage = newAssigneeName
+        ? `Lead assigned to ${newAssigneeName}: ${customerName}`
+        : `Lead assigned: ${customerName}`;
+
       const notification = {
         id: notificationId,
         type: 'lead_assigned',
-        message: `Lead assigned: ${customerName}`,
+        message: assignMessage,
         leadId: id,
         leadData: {
           customerName: customerName,
@@ -1233,7 +1246,7 @@ app.post('/api/v1/users/sync', async (req, res) => {
             role: user.role,
             avatar_url: user.avatarUrl || null
           };
-          
+
           // Try to update local_id if the column exists (won't fail if it doesn't)
           try {
             const { data: updated, error: updateError } = await supabase
@@ -1244,11 +1257,11 @@ app.post('/api/v1/users/sync', async (req, res) => {
               .single();
 
             if (updateError) throw updateError;
-            
+
             // Try to set local_id separately (in case column exists but wasn't in update)
             await supabase.rpc('set_local_id', { user_id: existingUser.id, local_id: user.id })
-              .catch(() => {}); // Ignore if function/column doesn't exist
-            
+              .catch(() => { }); // Ignore if function/column doesn't exist
+
             syncedUsers.push({ localId: user.id, supabaseId: existingUser.id, user: updated || existingUser });
           } catch (err) {
             // If update fails, try without local_id
@@ -1274,7 +1287,7 @@ app.post('/api/v1/users/sync', async (req, res) => {
             role: user.role,
             avatar_url: user.avatarUrl || null
           };
-          
+
           // Try to add local_id (will be ignored if column doesn't exist)
           // We'll use a raw SQL query to handle this gracefully
           try {
@@ -1285,7 +1298,7 @@ app.post('/api/v1/users/sync', async (req, res) => {
               .single();
 
             if (createError) throw createError;
-            
+
             // Try to update local_id separately using RPC or direct update
             // If local_id column exists, update it
             try {
@@ -1297,7 +1310,7 @@ app.post('/api/v1/users/sync', async (req, res) => {
               // local_id column doesn't exist, that's ok
               console.log(`   Note: local_id column not found for user ${user.name}, skipping local_id mapping`);
             }
-            
+
             syncedUsers.push({ localId: user.id, supabaseId: newUser.id, user: newUser });
           } catch (err) {
             throw err;
@@ -1333,7 +1346,7 @@ async function getOrCreateUserInSupabase(localUserId) {
   // First, try to find by a custom mapping (if we add a local_id column)
   // For now, we'll need to map by name - but this is not ideal
   // Better approach: store local_id mapping or sync users first
-  
+
   // For immediate fix: return null and let the validation error show
   // The proper fix is to sync users first
   return null;

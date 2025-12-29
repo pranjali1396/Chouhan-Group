@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
+import { StatusBadge } from './LeadsTable';
 import { type Lead, type User, LeadStatus, ActivityType, type Activity, type Task } from '../types';
 import { PhoneIcon, MailIcon, MapPinIcon, ChatBubbleIcon, ChatBubbleLeftRightIcon, CurrencyRupeeIcon, DocumentTextIcon, XMarkIcon, BuildingOfficeIcon } from './Icons';
 import ActivityFeed from './ActivityFeed';
@@ -192,13 +193,13 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
     const [newStatus, setNewStatus] = useState<LeadStatus>(lead.status);
     const [temperature, setTemperature] = useState<Lead['temperature']>(lead.temperature);
     const [nextFollowUp, setNextFollowUp] = useState(
-        lead.nextFollowUpDate ? new Date(lead.nextFollowUpDate).toISOString().split('T')[0] : 
-        (lead.contactDate ? new Date(lead.contactDate).toISOString().split('T')[0] : '')
+        lead.nextFollowUpDate ? new Date(lead.nextFollowUpDate).toISOString().split('T')[0] :
+            (lead.contactDate ? new Date(lead.contactDate).toISOString().split('T')[0] : '')
     );
     const [createReminder, setCreateReminder] = useState(true);
     // Initialize with empty string for select (null becomes '')
     const [assignedSalespersonId, setAssignedSalespersonId] = useState(
-      lead.assignedSalespersonId && lead.assignedSalespersonId !== '' ? lead.assignedSalespersonId : ''
+        lead.assignedSalespersonId && lead.assignedSalespersonId !== '' ? lead.assignedSalespersonId : ''
     );
 
     // Booking Details State
@@ -250,12 +251,16 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
     const handleUpdate = () => {
         // Validate user ID if assigning
         if (assignedSalespersonId && assignedSalespersonId !== '') {
-            // Check if it's a local ID (user-1, admin-0, etc.) instead of a UUID
-            const isLocalId = /^(user-|admin-)\d+$/.test(assignedSalespersonId);
-            if (isLocalId) {
-                alert('⚠️ Users need to be synced to Supabase first. Please:\n\n1. Create the users table in Supabase (run the SQL from backend/migrations/create_users_table.sql)\n2. Refresh the app to sync users\n3. Then try assigning again.');
-                return;
+            // Check if user exists in the users array
+            const assignedUser = users.find(u => u.id === assignedSalespersonId);
+            if (!assignedUser) {
+                console.warn(`⚠️ Assigned salesperson ID ${assignedSalespersonId} not found in users list`);
+                // Note: We don't block this, as it might be a user not currently loaded but valid in backend
             }
+
+            // Allow local IDs for development/testing
+            // const isLocalId = /^(user-|admin-)\d+$/.test(assignedSalespersonId);
+            // if (isLocalId) { ... }
         }
 
         // If booking, validate selections
@@ -280,18 +285,18 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
             // Update last remark with status remarks
             lastRemark: statusRemarks && statusRemarks.trim() ? statusRemarks : lead.lastRemark,
             // Save contact details when status is Contacted
-            contactDate: newStatus === LeadStatus.Contacted && nextFollowUp 
-                ? new Date(nextFollowUp).toISOString() 
+            contactDate: newStatus === LeadStatus.Contacted && nextFollowUp
+                ? new Date(nextFollowUp).toISOString()
                 : (newStatus === LeadStatus.Contacted ? lead.contactDate : undefined),
-            contactDuration: newStatus === LeadStatus.Contacted && duration 
-                ? parseInt(duration, 10) 
+            contactDuration: newStatus === LeadStatus.Contacted && duration
+                ? parseInt(duration, 10)
                 : (newStatus === LeadStatus.Contacted ? lead.contactDuration : undefined),
             // Send null for unassigned (empty string), or the user ID for assigned
             // Backend expects null for unassigned, not empty string
             assignedSalespersonId: assignedSalespersonId && assignedSalespersonId !== '' ? assignedSalespersonId : null,
             ...bookingUpdate
         };
-        
+
         // Debug: Log assignment change
         if (lead.assignedSalespersonId !== assignedSalespersonId) {
             const assignedUser = users.find(u => u.id === assignedSalespersonId);
@@ -318,16 +323,16 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
 
         // Create activity log entry if status changed
         if (newStatus !== lead.status) {
-            const statusRemark = statusRemarks && statusRemarks.trim() 
-                ? statusRemarks 
+            const statusRemark = statusRemarks && statusRemarks.trim()
+                ? statusRemarks
                 : `Status changed from "${lead.status}" to "${newStatus}"`;
-            
+
             console.log('📝 Creating status change activity:', {
                 from: lead.status,
                 to: newStatus,
                 remark: statusRemark
             });
-            
+
             // Add activity for status change
             onAddActivity(
                 lead,
@@ -354,7 +359,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
             taskDate.setHours(10, 0, 0, 0); // Default 10 AM
 
             onAddTask({
-                title: `Follow up: ${lead.customerName} (${newStatus})`,
+                title: `FLUP: ${lead.customerName} (${newStatus})`,
                 assignedToId: lead.assignedSalespersonId || currentUser.id,
                 dueDate: taskDate.toISOString(),
                 isCompleted: false,
@@ -373,9 +378,9 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
             alert('Please enter remarks before logging activity.');
             return;
         }
-        
+
         const callDuration = activityType === ActivityType.Call && duration ? parseInt(duration, 10) : undefined;
-        
+
         console.log('📝 Logging activity:', {
             leadId: lead.id,
             customerName: lead.customerName,
@@ -384,7 +389,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
             duration: callDuration,
             currentUser: currentUser.name
         });
-        
+
         // Auto-update status based on activity type for non-admin users
         let updatedStatus = lead.status;
         if (!isAdmin) {
@@ -395,7 +400,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                 }
             }
         }
-        
+
         // Update lead status if it changed
         if (updatedStatus !== lead.status) {
             const updatedLead: Lead = {
@@ -409,14 +414,14 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
             };
             onUpdateLead(updatedLead);
         }
-        
+
         // Add the activity
         onAddActivity(lead, activityType, remarks, callDuration);
-        
+
         // Clear form
         setRemarks('');
         setDuration('');
-        
+
         console.log('✅ Activity logged successfully');
     };
 
@@ -468,67 +473,77 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-base-100 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden relative" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-end md:items-center" onClick={onClose}>
+            <div className="bg-white w-full max-w-5xl h-[95vh] md:h-[90vh] md:rounded-3xl flex flex-col overflow-hidden relative shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
 
                 {/* Communication Modals Layer */}
-                {showEmailModal && <EmailModal lead={lead} onClose={() => setShowEmailModal(false)} onSend={handleSendEmail} />}
-                {showSMSModal && <SMSModal lead={lead} onClose={() => setShowSMSModal(false)} onSend={handleSendSMS} />}
+                <Suspense fallback={null}>
+                    {showEmailModal && <EmailModal lead={lead} onClose={() => setShowEmailModal(false)} onSend={async (s, b) => {
+                        await communicationService.sendEmail(lead.email || '', s, b);
+                        onAddActivity(lead, ActivityType.Email, `[Email Sent] Subject: ${s}`, undefined);
+                    }} />}
+                    {showSMSModal && <SMSModal lead={lead} onClose={() => setShowSMSModal(false)} onSend={async (m) => {
+                        await communicationService.sendSMS(lead.mobile, m);
+                        onAddActivity(lead, ActivityType.WhatsApp, `[SMS Sent] ${m}`, undefined);
+                    }} />}
+                </Suspense>
 
-                {/* Header */}
-                <div className="px-6 py-4 border-b border-border-color bg-white flex justify-between items-start shrink-0">
-                    <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <h2 className="text-2xl font-bold text-gray-900">{lead.customerName}</h2>
-                            {getTemperatureBadge(lead.temperature)}
-                            {lead.status === LeadStatus.Booked && lead.bookedUnitNumber && (
-                                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-green-100 text-green-800 border border-green-200">
-                                    Unit {lead.bookedUnitNumber}
-                                </span>
-                            )}
+                {/* Header: Premium Drawer Header */}
+                <div className="px-6 py-6 border-b border-slate-100 bg-white sticky top-0 z-10 shrink-0">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">{lead.customerName}</h2>
+                                <StatusBadge type="temp" value={lead.temperature} />
+                            </div>
+                            <div className="flex flex-wrap gap-3 items-center">
+                                <span className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest"><PhoneIcon className="w-3.5 h-3.5 mr-1.5" /> {lead.mobile}</span>
+                                <span className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest"><BuildingOfficeIcon className="w-3.5 h-3.5 mr-1.5" /> {lead.interestedProject || 'General Enquiry'}</span>
+                            </div>
                         </div>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                            <span className="flex items-center"><PhoneIcon className="w-4 h-4 mr-1" /> {lead.mobile}</span>
-                            <span className="flex items-center"><MapPinIcon className="w-4 h-4 mr-1" /> {lead.city || 'N/A'}</span>
-                            <span className="flex items-center"><DocumentTextIcon className="w-4 h-4 mr-1" /> {lead.interestedProject || 'No Project'}</span>
-                        </div>
+                        <button onClick={onClose} className="p-3 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-2xl transition-all active:scale-90">
+                            <XMarkIcon className="w-6 h-6" />
+                        </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {isAdmin && onDeleteLead && (
-                            <button
-                                onClick={async () => {
-                                    if (window.confirm(`Are you sure you want to delete the lead for ${lead.customerName}? This action cannot be undone.`)) {
-                                        try {
-                                            await onDeleteLead(lead.id);
-                                            onClose();
-                                        } catch (error) {
-                                            console.error('Error deleting lead:', error);
-                                            alert('Failed to delete lead. Please try again.');
-                                        }
-                                    }
-                                }}
-                                className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1.5"
-                                title="Delete lead"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                Delete
+
+                    {/* Quick Access Mobile Actions */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        <button onClick={handleInitiateCall} className="flex-1 min-w-[120px] py-3 bg-emerald-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                            <PhoneIcon className="w-4 h-4" /> Call Now
+                        </button>
+                        <button onClick={() => setShowSMSModal(true)} className="flex-1 min-w-[120px] py-3 bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                            <ChatBubbleLeftRightIcon className="w-4 h-4" /> WhatsApp
+                        </button>
+                        {lead.email && (
+                            <button onClick={() => setShowEmailModal(true)} className="flex-1 min-w-[120px] py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-200 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                <MailIcon className="w-4 h-4" /> Email
                             </button>
                         )}
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
                     </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="px-6 py-2 border-b border-border-color bg-gray-50 flex gap-2 shrink-0 overflow-x-auto">
-                    <TabButton label="Overview" isActive={activeTab === 'Details'} onClick={() => setActiveTab('Details')} />
-                    <TabButton label="Activity Log" isActive={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} />
-                    <TabButton label="Cost Estimator" isActive={activeTab === 'Cost'} onClick={() => setActiveTab('Cost')} />
+                {/* Navigation Tabs */}
+                <div className="flex border-b border-slate-50 px-6 shrink-0 bg-white">
+                    {['Overview', 'Activity Log', 'Cost Sheet'].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab === 'Overview' ? 'Details' : tab === 'Activity Log' ? 'Activity' : 'Cost')}
+                            className={`px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${(activeTab === 'Details' && tab === 'Overview') || (activeTab === 'Activity' && tab === 'Activity Log') || (activeTab === 'Cost' && tab === 'Cost Sheet')
+                                ? 'text-primary'
+                                : 'text-slate-400'
+                                }`}
+                        >
+                            {tab}
+                            {((activeTab === 'Details' && tab === 'Overview') || (activeTab === 'Activity' && tab === 'Activity Log') || (activeTab === 'Cost' && tab === 'Cost Sheet')) && (
+                                <div className="absolute bottom-0 left-0 right-0 h-1 grad-primary rounded-t-full"></div>
+                            )}
+                        </button>
+                    ))}
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 bg-base-200">
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto bg-slate-50/50">
+
                     {activeTab === 'Details' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-2 space-y-6">
@@ -545,8 +560,8 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <label className="label-style">Stage</label>
-                                            <select 
-                                                value={newStatus} 
+                                            <select
+                                                value={newStatus}
                                                 onChange={(e) => {
                                                     const newStatusValue = e.target.value as LeadStatus;
                                                     setNewStatus(newStatusValue);
@@ -555,7 +570,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                                     if (newStatusValue === lead.status) {
                                                         setStatusRemarks(lead.lastRemark || '');
                                                     }
-                                                }} 
+                                                }}
                                                 className="input-style"
                                             >
                                                 {Object.values(LeadStatus).map(s => <option key={s} value={s}>{s}</option>)}
@@ -810,23 +825,23 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                             {Object.values(ActivityType).map(t => <option key={t} value={t}>{t}</option>)}
                                         </select>
                                         {activityType === ActivityType.Call && (
-                                            <input 
-                                                type="number" 
-                                                value={duration} 
-                                                onChange={e => setDuration(e.target.value)} 
-                                                placeholder="Duration (min)" 
-                                                className="input-style w-32 text-base py-3" 
+                                            <input
+                                                type="number"
+                                                value={duration}
+                                                onChange={e => setDuration(e.target.value)}
+                                                placeholder="Duration (min)"
+                                                className="input-style w-32 text-base py-3"
                                                 min="1"
                                             />
                                         )}
                                     </div>
                                     <div>
                                         <label className="label-style font-semibold text-base mb-2">Remarks</label>
-                                        <textarea 
-                                            value={remarks} 
-                                            onChange={e => setRemarks(e.target.value)} 
-                                            placeholder="Enter detailed remarks..." 
-                                            className="input-style w-full text-base p-4 min-h-[120px] resize-y" 
+                                        <textarea
+                                            value={remarks}
+                                            onChange={e => setRemarks(e.target.value)}
+                                            placeholder="Enter detailed remarks..."
+                                            className="input-style w-full text-base p-4 min-h-[120px] resize-y"
                                             rows={5}
                                         />
                                     </div>
@@ -837,9 +852,9 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                             </div>
                             <div className="card p-5 flex-1 overflow-y-auto">
                                 {activities && activities.length > 0 ? (
-                                    <ActivityFeed 
-                                        activities={activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())} 
-                                        users={users} 
+                                    <ActivityFeed
+                                        activities={activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
+                                        users={users}
                                         title="Activity History"
                                         onDeleteActivity={onDeleteActivity}
                                         currentUserId={currentUser.id}

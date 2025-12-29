@@ -1,13 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from the backend root directory (two levels up from src)
+const envPath = path.resolve(__dirname, '../.env');
+dotenv.config({ path: envPath });
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+console.log('[Supabase Config] Loading from:', envPath);
 console.log('[Supabase Config] URL present:', !!SUPABASE_URL, 'Key present:', !!SUPABASE_SERVICE_ROLE_KEY);
-if (SUPABASE_URL) console.log('[Supabase Config] URL:', SUPABASE_URL);
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.warn(

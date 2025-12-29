@@ -26,22 +26,15 @@ const TaskItem: React.FC<{
     const [showRemarks, setShowRemarks] = useState(false);
     const [remarks, setRemarks] = useState(task.remarks || '');
     const [isEditingRemarks, setIsEditingRemarks] = useState(false);
+
     useEffect(() => {
         setRemarks(task.remarks || '');
     }, [task.remarks]);
 
     const handleDeleteClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent toggling the task when clicking delete
+        e.stopPropagation();
         if (window.confirm(`Are you sure you want to delete this task: "${task.title}"?`)) {
             onDelete(task.id);
-        }
-    };
-
-    const handleToggleRemarks = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setShowRemarks(!showRemarks);
-        if (!showRemarks && !task.remarks) {
-            setIsEditingRemarks(true);
         }
     };
 
@@ -53,175 +46,92 @@ const TaskItem: React.FC<{
         setIsEditingRemarks(false);
     };
 
-    const handleCancelRemarks = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setRemarks(task.remarks || '');
-        setIsEditingRemarks(false);
-    };
-
-    // Determine status
     const now = new Date();
     const dueDate = new Date(task.dueDate);
     const isOverdue = !task.isCompleted && dueDate < now;
     const isToday = !task.isCompleted && dueDate.toDateString() === now.toDateString();
-    
-    const reminderDate = task.reminderDate ? new Date(task.reminderDate) : null;
 
     return (
-        <div className={`group flex items-start justify-between p-4 rounded-lg border transition-all duration-200 ${
-            task.isCompleted 
-                ? 'bg-green-50 border-green-200' 
-                : isOverdue 
-                    ? 'bg-red-50 border-red-200 shadow-sm' 
-                    : 'bg-white border-border-color hover:border-primary hover:shadow-md'
-        }`}>
-            <div className="flex items-start flex-grow min-w-0 gap-3">
-                <div className="mt-0.5 relative">
+        <div className={`group relative p-3.5 md:p-5 rounded-2xl md:rounded-[2rem] border-2 transition-all duration-300 shadow-sm overflow-hidden active:scale-[0.98] ${task.isCompleted
+            ? 'bg-emerald-50/50 border-emerald-100 opacity-80'
+            : isOverdue
+                ? 'bg-rose-50 border-rose-100 shadow-rose-100/50 ring-4 ring-rose-50/50'
+                : 'bg-white border-slate-100 hover:border-indigo-200'
+            }`}>
+            <div className="flex items-start gap-2.5 md:gap-4">
+                {/* Checkbox - Large touch area */}
+                <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
                     <input
                         type="checkbox"
                         checked={task.isCompleted}
                         onChange={() => onToggle(task.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className={`h-5 w-5 rounded border-2 text-primary focus:ring-primary cursor-pointer transition-colors ${
-                            isOverdue ? 'border-red-300' : 'border-gray-300'
-                        }`}
+                        className={`h-5 w-5 md:h-7 md:w-7 rounded-lg md:rounded-xl border-2 transition-all cursor-pointer shadow-sm ${task.isCompleted
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : isOverdue
+                                ? 'border-rose-300 text-rose-500 focus:ring-rose-200'
+                                : 'border-slate-300 text-indigo-600 focus:ring-indigo-100'
+                            }`}
                     />
                 </div>
-                
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <p className={`font-medium truncate transition-all ${
-                            task.isCompleted ? 'text-gray-600' : 'text-base-content'
-                        }`}>
-                            {task.title}
-                        </p>
-                        {isOverdue && (
-                            <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-200">
-                                Overdue
-                            </span>
-                        )}
-                        {isToday && (
-                            <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-orange-100 text-orange-700 border border-orange-200">
-                                Today
-                            </span>
-                        )}
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-content">
-                        <span className={`flex items-center font-medium ${
-                            isOverdue ? 'text-red-600' : isToday ? 'text-orange-600' : ''
-                        }`}>
-                            <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
-                            {isToday 
-                                ? `Due Today at ${dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` 
-                                : dueDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                            }
-                        </span>
 
-                        {reminderDate && !task.isCompleted && (
-                             <span className="flex items-center text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                                🔔 {reminderDate.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}
-                             </span>
-                        )}
-                        
-                        {user && (
-                            <span className="flex items-center bg-base-200 px-2 py-0.5 rounded text-text-secondary">
-                                <UserCircleIcon className="w-3.5 h-3.5 mr-1.5" />
-                                {user.name}
-                            </span>
-                        )}
-                        
-                        <span className="text-xs text-gray-400 border-l border-gray-300 pl-3">
-                            Added by {task.createdBy}
-                        </span>
-                    </div>
-
-                    {/* Remarks Section */}
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                            <button
-                                onClick={handleToggleRemarks}
-                                className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
-                            >
-                                <DocumentTextIcon className="w-4 h-4" />
-                                {task.remarks ? 'View/Edit Remarks' : 'Add Remarks'}
-                            </button>
-                            {task.remarks && !isEditingRemarks && (
-                                <span className="text-xs text-gray-500">✓ Has remarks</span>
-                            )}
+                <div className="flex-1 min-w-0 space-y-1.5 md:space-y-2">
+                    <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap gap-1 md:gap-2 items-center">
+                            <h3 className={`font-black text-[13px] md:text-lg leading-tight break-words pr-2 ${task.isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                {task.title}
+                            </h3>
+                            {isOverdue && <span className="px-1.5 py-0.5 rounded-full text-[6px] md:text-[8px] font-black uppercase tracking-widest bg-rose-500 text-white">Overdue</span>}
+                            {isToday && <span className="px-1.5 py-0.5 rounded-full text-[6px] md:text-[8px] font-black uppercase tracking-widest bg-amber-500 text-white">Today</span>}
                         </div>
-                        {showRemarks && (
-                            <div className="mt-2">
-                                {isEditingRemarks ? (
-                                    <div className="space-y-2">
-                                        <textarea
-                                            value={remarks}
-                                            onChange={(e) => setRemarks(e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            rows={4}
-                                            className="input-style w-full text-sm p-3 min-h-[100px] resize-y"
-                                            placeholder="Enter task remarks, notes, or completion details..."
-                                        />
-                                        <div className="flex gap-2 justify-end">
-                                            <button
-                                                onClick={handleCancelRemarks}
-                                                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={handleSaveRemarks}
-                                                className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                                            >
-                                                Save Remarks
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.remarks || 'No remarks added yet.'}</p>
-                                        </div>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsEditingRemarks(true);
-                                            }}
-                                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                                        >
-                                            <PencilSquareIcon className="w-3.5 h-3.5" />
-                                            Edit Remarks
-                                        </button>
-                                    </div>
-                                )}
+                        <button onClick={handleDeleteClick} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors">
+                            <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                        <div className={`flex items-center gap-1 px-2 py-0.5 md:px-3 md:py-1 rounded-full border text-[8px] md:text-[10px] font-black uppercase tracking-tighter md:tracking-widest ${isOverdue ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-slate-50 border-slate-100 text-slate-500'
+                            }`}>
+                            <CalendarIcon className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                            {dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+
+                        {user && (
+                            <div className="flex items-center gap-1 px-2 py-0.5 md:px-3 md:py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[8px] md:text-[10px] font-black uppercase tracking-tighter md:tracking-widest">
+                                <UserCircleIcon className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                                {user.name}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Remarks Preview/Edit */}
+                    <div className="pt-1 md:pt-2">
+                        {isEditingRemarks ? (
+                            <div className="space-y-2 md:space-y-3 animate-fade-in">
+                                <textarea
+                                    value={remarks}
+                                    onChange={(e) => setRemarks(e.target.value)}
+                                    className="w-full p-2.5 md:p-4 rounded-xl md:rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-indigo-400 focus:bg-white text-[11px] md:text-sm font-medium transition-all min-h-[80px]"
+                                    placeholder="Add notes..."
+                                />
+                                <div className="flex gap-2 justify-end">
+                                    <button onClick={() => setIsEditingRemarks(false)} className="px-3 py-1.5 text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Cancel</button>
+                                    <button onClick={handleSaveRemarks} className="px-4 py-1.5 bg-slate-900 text-white rounded-lg md:rounded-xl text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">Save</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div
+                                onClick={() => setIsEditingRemarks(true)}
+                                className={`group/remark p-2 md:p-3 rounded-xl md:rounded-2xl border border-dashed transition-all cursor-pointer flex items-center gap-1.5 md:gap-2 ${task.remarks ? 'border-slate-200 bg-slate-50/50 hover:bg-slate-100' : 'border-slate-300 hover:border-indigo-300 hover:bg-indigo-50/30'
+                                    }`}
+                            >
+                                <DocumentTextIcon className="w-3 h-3 md:w-4 md:h-4 text-slate-400 group-hover/remark:text-indigo-500" />
+                                <p className={`text-[9px] md:text-[11px] font-medium break-words ${task.remarks ? 'text-slate-600' : 'text-slate-400 italic'}`}>
+                                    {task.remarks || 'Add task remarks...'}
+                                </p>
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
-            
-            <div className="flex items-center gap-2 ml-2">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onToggle(task.id);
-                    }}
-                    className={`p-2 rounded-full transition-all ${
-                        task.isCompleted 
-                            ? 'bg-green-100 text-green-600 hover:bg-green-200' 
-                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                    }`}
-                    title={task.isCompleted ? 'Mark as Pending' : 'Mark as Completed'}
-                >
-                    <CheckCircleIcon className="w-5 h-5" />
-                </button>
-                <button
-                    onClick={handleDeleteClick}
-                    className="p-2 rounded-full text-muted-content hover:bg-red-100 hover:text-danger opacity-0 group-hover:opacity-100 transition-all duration-200"
-                    title="Delete Task"
-                >
-                    <TrashIcon className="w-4 h-4" />
-                </button>
             </div>
         </div>
     );
@@ -266,71 +176,70 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, users, currentUser, onAddT
         // Remove duplicates by task ID (keep first occurrence)
         const uniqueTasks = Array.from(
             new Map(tasks.map(task => [task.id, task])).values()
-        );
+        ) as Task[];
         return uniqueTasks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     }, [tasks]);
 
     const { pendingTasks, completedTasks } = useMemo(() => {
         // Admin sees all tasks, regular users see only their assigned tasks
-        const filteredTasks = currentUser.role === 'Admin' 
-            ? sortedTasks 
+        const filteredTasks = currentUser.role === 'Admin'
+            ? sortedTasks
             : sortedTasks.filter(t => t.assignedToId === currentUser.id);
-        
+
         const pending = filteredTasks.filter(t => !t.isCompleted);
         const completed = filteredTasks.filter(t => t.isCompleted);
         return { pendingTasks: pending, completedTasks: completed };
     }, [sortedTasks, currentUser]);
 
     return (
-        <div className="space-y-6 pb-12">
+        <div className="space-y-4 md:space-y-6">
             <header className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-base-content">My Tasks</h1>
-                    <p className="text-sm text-muted-content mt-1">Manage your to-do list, assignments, and reminders.</p>
+                    <h1 className="text-lg md:text-3xl font-black text-slate-800 tracking-tight">Tasks</h1>
+                    <p className="text-[10px] md:text-sm text-slate-500 mt-0.5 md:mt-1 font-black uppercase tracking-widest">Assignments & Reminders</p>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 {/* Add Task Column */}
                 <div className="lg:col-span-1">
-                    <div className="card p-6 h-fit sticky top-6 border-t-4 border-primary">
-                        <h3 className="text-xl font-bold text-text-primary mb-4">Add New Task</h3>
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="card p-3 md:p-6 h-fit sticky top-2 border-t-4 border-primary">
+                        <h3 className="text-sm md:text-xl font-black text-text-primary mb-3 md:mb-4 uppercase tracking-wider">Add New Task</h3>
+                        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
                             <div>
-                                <label htmlFor="taskTitle" className="label-style">Task Description</label>
-                                <input 
-                                    id="taskTitle" 
-                                    type="text" 
-                                    value={title} 
-                                    onChange={e => setTitle(e.target.value)} 
-                                    className="input-style" 
-                                    placeholder="What needs to be done?" 
+                                <label htmlFor="taskTitle" className="label-style">Description</label>
+                                <input
+                                    id="taskTitle"
+                                    type="text"
+                                    value={title}
+                                    onChange={e => setTitle(e.target.value)}
+                                    className="input-style"
+                                    placeholder="Task title..."
                                 />
                             </div>
                             <div>
-                                <label htmlFor="taskDueDate" className="label-style">Due Date & Time</label>
-                                <input 
-                                    id="taskDueDate" 
-                                    type="datetime-local" 
-                                    value={dueDate} 
-                                    onChange={e => setDueDate(e.target.value)} 
-                                    className="input-style" 
+                                <label htmlFor="taskDueDate" className="label-style">Due Date</label>
+                                <input
+                                    id="taskDueDate"
+                                    type="datetime-local"
+                                    value={dueDate}
+                                    onChange={e => setDueDate(e.target.value)}
+                                    className="input-style"
                                 />
                             </div>
-                             <div>
-                                <label htmlFor="taskReminder" className="label-style">Set Reminder</label>
-                                <select 
-                                    id="taskReminder" 
-                                    value={reminderOffset} 
-                                    onChange={e => setReminderOffset(e.target.value)} 
+                            <div>
+                                <label htmlFor="taskReminder" className="label-style">Reminder</label>
+                                <select
+                                    id="taskReminder"
+                                    value={reminderOffset}
+                                    onChange={e => setReminderOffset(e.target.value)}
                                     className="input-style"
                                 >
                                     <option value="">No Reminder</option>
                                     <option value="0">At due time</option>
-                                    <option value="15">15 minutes before</option>
-                                    <option value="30">30 minutes before</option>
+                                    <option value="15">15 mins before</option>
+                                    <option value="30">30 mins before</option>
                                     <option value="60">1 hour before</option>
-                                    <option value="1440">1 day before</option>
                                 </select>
                             </div>
                             {currentUser.role === 'Admin' && (
@@ -351,19 +260,19 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, users, currentUser, onAddT
                 </div>
 
                 {/* Task List Column */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-2 space-y-4 md:space-y-8">
                     {/* Pending Tasks Section */}
-                    <div className="card p-6 min-h-[300px]">
-                        <div className="flex justify-between items-end border-b border-border-color pb-3 mb-4">
-                            <h3 className="text-lg font-bold text-base-content flex items-center gap-2">
+                    <div className="card p-3 md:p-6 min-h-[150px] md:min-h-[300px]">
+                        <div className="flex justify-between items-end border-b border-border-color pb-2 md:pb-3 mb-3 md:mb-4">
+                            <h3 className="text-sm md:text-lg font-black text-base-content flex items-center gap-2 uppercase tracking-tight">
                                 Pending Tasks
-                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] md:text-xs font-black bg-blue-100 text-blue-800">
                                     {pendingTasks.length}
                                 </span>
                             </h3>
                         </div>
-                        
-                        <div className="space-y-3">
+
+                        <div className="space-y-2.5 md:space-y-3">
                             {pendingTasks.length > 0 ? (
                                 pendingTasks.map(task => (
                                     <TaskItem
@@ -377,32 +286,31 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, users, currentUser, onAddT
                                     />
                                 ))
                             ) : (
-                                <div className="text-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
-                                    <p className="text-muted-content font-medium">No pending tasks!</p>
-                                    <p className="text-sm text-gray-400 mt-1">You're all caught up. Enjoy your day!</p>
+                                <div className="text-center py-6 md:py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                                    <p className="text-[11px] md:text-sm text-slate-400 font-black uppercase tracking-widest">No pending tasks!</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Completed Tasks Section */}
-                    <div className="card bg-gray-50/80 border-gray-200 overflow-hidden">
-                        <div 
-                            className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                    <div className="card bg-gray-50/80 border-gray-200 overflow-hidden rounded-2xl">
+                        <div
+                            className="p-3 md:p-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition-colors select-none"
                             onClick={() => setShowCompleted(!showCompleted)}
                         >
-                            <h3 className="text-md font-semibold text-muted-content flex items-center gap-2">
-                                <span className="bg-green-100 text-green-600 p-1 rounded-full">
-                                    <CheckCircleIcon className="w-4 h-4" />
+                            <h3 className="text-[11px] md:text-md font-black text-slate-500 flex items-center gap-2 uppercase tracking-widest">
+                                <span className="bg-emerald-100 text-emerald-600 p-1 rounded-full">
+                                    <CheckCircleIcon className="w-3 md:w-4 h-3 md:h-4" />
                                 </span>
-                                Completed Tasks
+                                Completed
                             </h3>
-                            <div className="flex items-center gap-3">
-                                <span className="text-xs font-medium bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] md:text-xs font-black bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">
                                     {completedTasks.length}
                                 </span>
-                                <svg 
-                                    className={`w-5 h-5 text-gray-400 transform transition-transform duration-200 ${showCompleted ? 'rotate-180' : ''}`} 
+                                <svg
+                                    className={`w-4 md:w-5 h-4 md:h-5 text-gray-400 transform transition-transform duration-200 ${showCompleted ? 'rotate-180' : ''}`}
                                     fill="none" viewBox="0 0 24 24" stroke="currentColor"
                                 >
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
