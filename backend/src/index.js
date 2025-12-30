@@ -1487,144 +1487,6 @@ app.listen(PORT, () => {
 
 // --- ATTENDANCE ENDPOINTS ---
 
-// Get attendance status for a user (Today)
-app.get('/api/v1/attendance/:userId', async (req, res) => {
-  const { userId } = req.params;
-  const now = new Date();
-  const today = now.toISOString().split('T')[0];
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-
-  console.log(`📥 GET /api/v1/attendance/${userId} for date ${today}`);
-
-  try {
-    if (!supabase) {
-      // In-memory fallback (mock)
-      return res.json({
-        success: true,
-        attendance: { status: 'NotClockedIn', clockInTime: null },
-        summary: { hoursToday: 0, daysThisMonth: 0 }
-      });
-    }
-
-    // 1. Resolve user ID if local ID
-    let dbUserId = userId;
-    if (userId.startsWith('user-') || userId.startsWith('admin-')) {
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('local_id', userId)
-        .maybeSingle();
-      if (user) dbUserId = user.id;
-    }
-
-    // 2. Fetch record
-    const { data: todayRecord, error } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('user_id', dbUserId)
-      .eq('date', today)
-      .maybeSingle();
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('❌ Attendance fetch error:', error);
-      throw error;
-    }
-
-    // 3. Fetch monthly count
-    const { count: monthlyCount, error: countError } = await supabase
-      .from('attendance')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', dbUserId)
-      .gte('date', startOfMonth)
-      .lte('date', today);
-
-    if (countError) {
-      console.error('❌ Monthly count error:', countError);
-    }
-
-    // 4. Calculate stats
-    let status = 'NotClockedIn';
-    let clockInTime = null;
-    let clockOutTime = null;
-    let location = null;
-    let hoursToday = 0; // in milliseconds
-
-    if (todayRecord) {
-      status = todayRecord.clock_out ? 'ClockedOut' : 'ClockedIn';
-      clockInTime = todayRecord.clock_in;
-      clockOutTime = todayRecord.clock_out;
-      location = todayRecord.location_in;
-
-      // Calculate duration
-      const start = new Date(todayRecord.clock_in).getTime();
-      const end = todayRecord.clock_out ? new Date(todayRecord.clock_out).getTime() : now.getTime();
-      hoursToday = end - start;
-    }
-
-    return res.json({
-      success: true,
-      attendance: {
-        id: todayRecord?.id,
-        status,
-        clockInTime,
-        clockOutTime,
-        location
-      },
-      summary: {
-        hoursToday,
-        daysThisMonth: monthlyCount || 0
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Error fetching attendance:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch attendance' });
-  }
-});
-
-// Clock In
-app.post('/api/v1/attendance/clock-in', async (req, res) => {
-  const { userId, location, timestamp } = req.body;
-  const today = new Date().toISOString().split('T')[0];
-
-  console.log(`📥 POST /api/v1/attendance/clock-in for ${userId}`);
-
-  try {
-    if (!supabase) {
-      return res.json({ success: true, message: 'Clocked in (Memory)' });
-    }
-
-    // 1. Resolve ID
-    let dbUserId = userId;
-    if (userId.startsWith('user-') || userId.startsWith('admin-')) {
-      const { data: user } = await supabase.from('users').select('id').eq('local_id', userId).maybeSingle();
-      if (user) dbUserId = user.id;
-    }
-
-    // 2. Upsert clock in
-    const { data, error } = await supabase
-      .from('attendance')
-      .upsert({
-        user_id: dbUserId,
-        date: today,
-        clock_in: timestamp || new Date().toISOString(),
-        location_in: location,
-        status: 'Present'
-      }, { onConflict: 'user_id, date' })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    console.log('✅ Clocked in successfully:', data);
-    res.json({ success: true, data });
-
-  } catch (error) {
-    console.error('❌ Clock-in failed:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // ADMIN: Get dashboard summary (All users status today)
 app.get('/api/v1/attendance/dashboard', async (req, res) => {
   const today = new Date().toISOString().split('T')[0];
@@ -1721,7 +1583,7 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Dashboard Error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load dashboard' });
+    res.status(500).json({ success: false, error: `Dashboard Error: ${error.message}` });
   }
 });
 
@@ -1781,4 +1643,196 @@ app.get('/api/v1/attendance/export', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// Clock In
+app.post('/api/v1/attendance/clock-in', async (req, res) => {
+  const { userId, location, timestamp } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+
+  console.log(`📥 POST /api/v1/attendance/clock-in for ${userId}`);
+
+  try {
+    if (!supabase) {
+      return res.json({ success: true, message: 'Clocked in (Memory)' });
+    }
+
+    // 1. Resolve ID
+    let dbUserId = userId;
+    if (userId.startsWith('user-') || userId.startsWith('admin-')) {
+      const { data: user } = await supabase.from('users').select('id').eq('local_id', userId).maybeSingle();
+      if (user) dbUserId = user.id;
+    }
+
+    // 2. Upsert clock in
+    const { data, error } = await supabase
+      .from('attendance')
+      .upsert({
+        user_id: dbUserId,
+        date: today,
+        clock_in: timestamp || new Date().toISOString(),
+        location_in: location,
+        status: 'Present'
+      }, { onConflict: 'user_id, date' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('✅ Clocked in successfully:', data);
+    res.json({ success: true, data });
+
+  } catch (error) {
+    console.error('❌ Clock-in failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Clock Out
+app.post('/api/v1/attendance/clock-out', async (req, res) => {
+  const { userId, timestamp } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+
+  console.log(`📤 POST /api/v1/attendance/clock-out for ${userId}`);
+
+  try {
+    if (!supabase) return res.json({ success: true, message: 'Clocked out (Memory)' });
+
+    // 1. Resolve ID
+    let dbUserId = userId;
+    if (userId.startsWith('user-') || userId.startsWith('admin-')) {
+      const { data: user } = await supabase.from('users').select('id').eq('local_id', userId).maybeSingle();
+      if (user) dbUserId = user.id;
+    }
+
+    // 2. Update existing record for today
+    const { data, error } = await supabase
+      .from('attendance')
+      .update({
+        clock_out: timestamp || new Date().toISOString()
+      })
+      .eq('user_id', dbUserId)
+      .eq('date', today)
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      return res.status(404).json({ success: false, error: 'No clock-in record found for today' });
+    }
+
+    console.log('✅ Clocked out successfully:', data);
+    res.json({ success: true, data });
+
+  } catch (error) {
+    console.error('❌ Clock-out failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get attendance status for a user (Today)
+app.get('/api/v1/attendance/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+  console.log(`📥 GET /api/v1/attendance/${userId} for date ${today}`);
+
+  try {
+    if (!supabase) {
+      // In-memory fallback (mock)
+      return res.json({
+        success: true,
+        attendance: { status: 'NotClockedIn', clockInTime: null },
+        summary: { hoursToday: 0, daysThisMonth: 0 }
+      });
+    }
+
+    // 1. Resolve user ID if local ID
+    let dbUserId = userId;
+    if (userId.startsWith('user-') || userId.startsWith('admin-')) {
+      const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('local_id', userId)
+        .maybeSingle();
+
+      if (user) {
+        dbUserId = user.id;
+      } else {
+        // Legacy ID not found in Sync? Assume checking status for unsynced user -> Not Clocked In
+        // This avoids querying a UUID column with a Text ID which causes 500
+        return res.json({
+          success: true,
+          attendance: { status: 'NotClockedIn', clockInTime: null },
+          summary: { hoursToday: 0, daysThisMonth: 0 }
+        });
+      }
+    }
+
+    // 2. Fetch record
+    const { data: todayRecord, error } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('user_id', dbUserId)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('❌ Attendance fetch error:', error);
+      throw error;
+    }
+
+    // 3. Fetch monthly count
+    const { count: monthlyCount, error: countError } = await supabase
+      .from('attendance')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', dbUserId)
+      .gte('date', startOfMonth)
+      .lte('date', today);
+
+    if (countError) {
+      console.error('❌ Monthly count error:', countError);
+    }
+
+    // 4. Calculate stats
+    let status = 'NotClockedIn';
+    let clockInTime = null;
+    let clockOutTime = null;
+    let location = null;
+    let hoursToday = 0; // in milliseconds
+
+    if (todayRecord) {
+      status = todayRecord.clock_out ? 'ClockedOut' : 'ClockedIn';
+      clockInTime = todayRecord.clock_in;
+      clockOutTime = todayRecord.clock_out;
+      location = todayRecord.location_in;
+
+      // Calculate duration
+      const start = new Date(todayRecord.clock_in).getTime();
+      const end = todayRecord.clock_out ? new Date(todayRecord.clock_out).getTime() : now.getTime();
+      hoursToday = end - start;
+    }
+
+    return res.json({
+      success: true,
+      attendance: {
+        id: todayRecord?.id,
+        status,
+        clockInTime,
+        clockOutTime,
+        location
+      },
+      summary: {
+        hoursToday,
+        daysThisMonth: monthlyCount || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching attendance:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch attendance' });
+  }
+});
+
 

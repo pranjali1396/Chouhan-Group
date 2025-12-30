@@ -129,6 +129,27 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
     );
   };
 
+  const handleClockOut = async () => {
+    setStatus('ClockingOut');
+    setError(null);
+
+    try {
+      await api.clockOut(currentUser.id);
+      setStatus('NotClockedIn');
+      setClockInTime(null);
+      setLocation(null);
+      // Refresh dashboard if admin
+      if (isAdmin) {
+        const res = await api.getAttendanceDashboard();
+        if (res.success) setDashboardData(res.data);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to clock out');
+      setStatus('ClockedIn'); // Revert status if failed
+    }
+  };
+
   const handleExport = () => {
     const month = new Date().toISOString().slice(0, 7); // YYYY-MM
     window.open(api.getExportUrl(month), '_blank');
@@ -196,6 +217,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
             location={location}
             error={error}
             onClockIn={handleClockIn}
+            onClockOut={handleClockOut}
           />
         </div>
 
@@ -226,10 +248,10 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
                         <td className="px-4 py-3">{user.role}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${user.status === 'Online' ? 'bg-green-100 text-green-800' :
-                              user.status === 'Clocked Out' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
+                            user.status === 'Clocked Out' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
                             }`}>
                             <span className={`w-1.5 h-1.5 mr-1.5 rounded-full ${user.status === 'Online' ? 'bg-green-500' :
-                                user.status === 'Clocked Out' ? 'bg-gray-500' : 'bg-red-500'
+                              user.status === 'Clocked Out' ? 'bg-gray-500' : 'bg-red-500'
                               }`}></span>
                             {user.status}
                           </span>

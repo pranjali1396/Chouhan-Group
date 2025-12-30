@@ -167,6 +167,13 @@ class ApiService {
     });
   }
 
+  async clockOut(userId: string) {
+    return this.request<{ success: true; data: any }>('/attendance/clock-out', {
+      method: 'POST',
+      body: JSON.stringify({ userId, timestamp: new Date().toISOString() })
+    });
+  }
+
   // Admin Dashboard
   async getAttendanceDashboard() {
     return this.request<{ success: true; data: any[] }>('/attendance/dashboard');

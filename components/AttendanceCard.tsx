@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MapPinIcon } from './Icons';
 
-export type AttendanceStatus = 'NotClockedIn' | 'ClockingIn' | 'ClockedIn' | 'Error';
+export type AttendanceStatus = 'NotClockedIn' | 'ClockingIn' | 'ClockedIn' | 'ClockingOut' | 'Error';
 
 interface AttendanceCardProps {
     status: AttendanceStatus;
@@ -9,9 +9,10 @@ interface AttendanceCardProps {
     location: string | null;
     error: string | null;
     onClockIn: () => void;
+    onClockOut: () => void;
 }
 
-const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, location, error, onClockIn }) => {
+const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, location, error, onClockIn, onClockOut }) => {
 
     const getStatusMessage = () => {
         switch (status) {
@@ -19,6 +20,8 @@ const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, lo
                 return <p className="text-sm text-text-secondary">You are not clocked in.</p>;
             case 'ClockingIn':
                 return <p className="text-sm text-text-secondary animate-pulse">Clocking in...</p>;
+            case 'ClockingOut':
+                return <p className="text-sm text-text-secondary animate-pulse">Clocking out...</p>;
             case 'ClockedIn':
                 return (
                     <div>
@@ -42,13 +45,22 @@ const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, lo
             <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                     {getStatusMessage()}
-                    <button
-                        onClick={onClockIn}
-                        disabled={status === 'ClockedIn' || status === 'ClockingIn'}
-                        className="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg shadow-sm hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-                    >
-                        {status === 'ClockedIn' ? 'Clocked In' : 'Clock In'}
-                    </button>
+                    {status === 'ClockedIn' ? (
+                        <button
+                            onClick={onClockOut}
+                            className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-lg shadow-sm hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500 transition-colors"
+                        >
+                            Clock Out
+                        </button>
+                    ) : (
+                        <button
+                            onClick={onClockIn}
+                            disabled={status === 'ClockingIn' || status === 'ClockingOut'}
+                            className="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg shadow-sm hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+                        >
+                            {status === 'ClockingIn' ? 'Syncing...' : 'Clock In'}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
