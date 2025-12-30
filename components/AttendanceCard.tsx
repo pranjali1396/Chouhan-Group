@@ -1,42 +1,24 @@
 import React, { useState } from 'react';
 import { MapPinIcon } from './Icons';
 
-type AttendanceStatus = 'NotClockedIn' | 'ClockingIn' | 'ClockedIn' | 'Error';
+export type AttendanceStatus = 'NotClockedIn' | 'ClockingIn' | 'ClockedIn' | 'Error';
 
-const AttendanceCard: React.FC = () => {
-    const [status, setStatus] = useState<AttendanceStatus>('NotClockedIn');
-    const [clockInTime, setClockInTime] = useState<Date | null>(null);
-    const [location, setLocation] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+interface AttendanceCardProps {
+    status: AttendanceStatus;
+    clockInTime: Date | null;
+    location: string | null;
+    error: string | null;
+    onClockIn: () => void;
+}
 
-    const handleClockIn = () => {
-        setStatus('ClockingIn');
-        setLocation('Fetching location...');
-        setError(null);
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude } = position.coords;
-                setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-                setClockInTime(new Date());
-                setStatus('ClockedIn');
-            },
-            (err) => {
-                console.error(err);
-                setError('Could not get location. Please enable permissions.');
-                setLocation(null);
-                setStatus('Error');
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-    };
+const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, location, error, onClockIn }) => {
 
     const getStatusMessage = () => {
         switch (status) {
             case 'NotClockedIn':
                 return <p className="text-sm text-text-secondary">You are not clocked in.</p>;
             case 'ClockingIn':
-                 return <p className="text-sm text-text-secondary animate-pulse">Clocking in...</p>;
+                return <p className="text-sm text-text-secondary animate-pulse">Clocking in...</p>;
             case 'ClockedIn':
                 return (
                     <div>
@@ -61,11 +43,11 @@ const AttendanceCard: React.FC = () => {
                 <div className="flex items-center justify-between">
                     {getStatusMessage()}
                     <button
-                        onClick={handleClockIn}
+                        onClick={onClockIn}
                         disabled={status === 'ClockedIn' || status === 'ClockingIn'}
                         className="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg shadow-sm hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
                     >
-                       {status === 'ClockedIn' ? 'Clocked In' : 'Clock In'}
+                        {status === 'ClockedIn' ? 'Clocked In' : 'Clock In'}
                     </button>
                 </div>
             </div>

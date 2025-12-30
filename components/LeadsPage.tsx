@@ -644,15 +644,14 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         }
 
         // 1. Filter by View Mode (Leads vs Opps vs Clients)
-        // BUT: For "assigned", "unassigned" tabs, and "new" tab for non-admin users, show ALL statuses
+        // BUT: For "assigned" and "unassigned" tabs, show ALL statuses
         const adminUser = users.find(u => u.role === 'Admin');
         const isAdmin = currentUser.role === 'Admin';
         const isAssignmentTab = activeTab === 'assigned' || activeTab === 'unassigned';
-        const isNewTabForNonAdmin = activeTab === 'new' && !isAdmin;
 
         let filtered: Lead[];
-        if (isAssignmentTab || isNewTabForNonAdmin) {
-            // For assignment tabs and "new" tab for non-admin users, show all leads regardless of status
+        if (isAssignmentTab) {
+            // For assignment tabs, show all leads regardless of status
             filtered = [...leads];
         } else {
             // For other tabs, filter by viewMode statuses
@@ -660,10 +659,10 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
             filtered = leads.filter(l => viewModeStatuses.includes(l.status));
         }
 
-        // 2. Filter by Active Tab (only for admin users on regular tabs)
+        // 2. Filter by Active Tab (applies tab-specific status filters)
         const tabStatuses = getStatusesForTab(activeTab);
-        if (tabStatuses && !isAssignmentTab && !isNewTabForNonAdmin) {
-            // Only apply status filtering if not an assignment tab and not "new" tab for non-admin
+        if (tabStatuses && !isAssignmentTab) {
+            // Apply status filtering based on the active tab (e.g., "new", "contacted", "lost")
             filtered = filtered.filter(l => tabStatuses.includes(l.status));
         }
 
@@ -699,12 +698,20 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
             });
         }
 
-        // 2.7. Handle "New Leads" tab for non-admin users - show ALL their assigned leads (all statuses)
-        if (activeTab === 'new' && !isAdmin) {
-            // For non-admin users, "New Leads" tab shows ALL their assigned leads regardless of status
-            filtered = filtered.filter(l =>
-                l.assignedSalespersonId === currentUser.id
-            );
+        // 2.7. Handle "New Leads" tab - show only leads with status "New Lead"
+        // For Admin: Show all leads with "New Lead" status
+        // For Salesperson: Show only their assigned leads with "New Lead" status  
+        if (activeTab === 'new') {
+            filtered = filtered.filter(l => {
+                const isNewLead = l.status === LeadStatus.New;
+                if (isAdmin) {
+                    // Admin sees all new leads
+                    return isNewLead;
+                } else {
+                    // Salesperson sees only their assigned new leads
+                    return isNewLead && l.assignedSalespersonId === currentUser.id;
+                }
+            });
         }
 
         // 3. Local Search

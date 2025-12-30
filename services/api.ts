@@ -150,6 +150,32 @@ class ApiService {
     });
     return response;
   }
+
+  // Attendance
+  async getAttendanceStatus(userId: string) {
+    return this.request<{
+      success: true;
+      attendance: { status: string; clockInTime: string | null; location: string | null };
+      summary: { hoursToday: number; daysThisMonth: number };
+    }>(`/attendance/${userId}`);
+  }
+
+  async clockIn(userId: string, location: string | null) {
+    return this.request<{ success: true; data: any }>('/attendance/clock-in', {
+      method: 'POST',
+      body: JSON.stringify({ userId, location, timestamp: new Date().toISOString() })
+    });
+  }
+
+  // Admin Dashboard
+  async getAttendanceDashboard() {
+    return this.request<{ success: true; data: any[] }>('/attendance/dashboard');
+  }
+
+  getExportUrl(month: string) {
+    // Direct URL for download
+    return `${API_BASE_URL}/attendance/export?month=${month}`;
+  }
 }
 
 export const api = new ApiService();

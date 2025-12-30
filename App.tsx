@@ -1207,7 +1207,7 @@ const App: React.FC = () => {
         Content = <CalendarPage leads={visibleLeads} tasks={visibleTasks} />;
         break;
       case 'Attendance':
-        Content = <AttendancePage />;
+        Content = <AttendancePage {...commonProps} />;
         break;
       case 'Reports':
         Content = <ReportsPage

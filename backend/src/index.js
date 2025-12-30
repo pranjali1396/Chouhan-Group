@@ -1484,3 +1484,272 @@ app.listen(PORT, () => {
   console.log('📝 Waiting for leads from websites...\n');
 });
 
+
+// --- ATTENDANCE ENDPOINTS ---
+
+// Get attendance status for a user (Today)
+app.get('/api/v1/attendance/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+  console.log(`📥 GET /api/v1/attendance/${userId} for date ${today}`);
+
+  try {
+    if (!supabase) {
+      // In-memory fallback (mock)
+      return res.json({
+        success: true,
+        attendance: { status: 'NotClockedIn', clockInTime: null },
+        summary: { hoursToday: 0, daysThisMonth: 0 }
+      });
+    }
+
+    // 1. Resolve user ID if local ID
+    let dbUserId = userId;
+    if (userId.startsWith('user-') || userId.startsWith('admin-')) {
+      const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('local_id', userId)
+        .maybeSingle();
+      if (user) dbUserId = user.id;
+    }
+
+    // 2. Fetch record
+    const { data: todayRecord, error } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('user_id', dbUserId)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('❌ Attendance fetch error:', error);
+      throw error;
+    }
+
+    // 3. Fetch monthly count
+    const { count: monthlyCount, error: countError } = await supabase
+      .from('attendance')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', dbUserId)
+      .gte('date', startOfMonth)
+      .lte('date', today);
+
+    if (countError) {
+      console.error('❌ Monthly count error:', countError);
+    }
+
+    // 4. Calculate stats
+    let status = 'NotClockedIn';
+    let clockInTime = null;
+    let clockOutTime = null;
+    let location = null;
+    let hoursToday = 0; // in milliseconds
+
+    if (todayRecord) {
+      status = todayRecord.clock_out ? 'ClockedOut' : 'ClockedIn';
+      clockInTime = todayRecord.clock_in;
+      clockOutTime = todayRecord.clock_out;
+      location = todayRecord.location_in;
+
+      // Calculate duration
+      const start = new Date(todayRecord.clock_in).getTime();
+      const end = todayRecord.clock_out ? new Date(todayRecord.clock_out).getTime() : now.getTime();
+      hoursToday = end - start;
+    }
+
+    return res.json({
+      success: true,
+      attendance: {
+        id: todayRecord?.id,
+        status,
+        clockInTime,
+        clockOutTime,
+        location
+      },
+      summary: {
+        hoursToday,
+        daysThisMonth: monthlyCount || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching attendance:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch attendance' });
+  }
+});
+
+// Clock In
+app.post('/api/v1/attendance/clock-in', async (req, res) => {
+  const { userId, location, timestamp } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+
+  console.log(`📥 POST /api/v1/attendance/clock-in for ${userId}`);
+
+  try {
+    if (!supabase) {
+      return res.json({ success: true, message: 'Clocked in (Memory)' });
+    }
+
+    // 1. Resolve ID
+    let dbUserId = userId;
+    if (userId.startsWith('user-') || userId.startsWith('admin-')) {
+      const { data: user } = await supabase.from('users').select('id').eq('local_id', userId).maybeSingle();
+      if (user) dbUserId = user.id;
+    }
+
+    // 2. Upsert clock in
+    const { data, error } = await supabase
+      .from('attendance')
+      .upsert({
+        user_id: dbUserId,
+        date: today,
+        clock_in: timestamp || new Date().toISOString(),
+        location_in: location,
+        status: 'Present'
+      }, { onConflict: 'user_id, date' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('✅ Clocked in successfully:', data);
+    res.json({ success: true, data });
+
+  } catch (error) {
+    console.error('❌ Clock-in failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ADMIN: Get dashboard summary (All users status today)
+app.get('/api/v1/attendance/dashboard', async (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  console.log(`📥 GET /api/v1/attendance/dashboard for ${today}`);
+
+  try {
+    if (!supabase) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // 1. Get All Users
+    const { data: users, error: userError } = await supabase
+      .from('users')
+      .select('id, name, role, local_id');
+
+    if (userError) throw userError;
+
+    // 2. Get Today's Attendance for All
+    const { data: attendance, error: attError } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('date', today);
+
+    if (attError) throw attError;
+
+    // 3. Merge Data
+    const dashboardData = users.map(user => {
+      // Find matching attendance record
+      const record = attendance.find(a => a.user_id === user.id);
+
+      let status = 'Offline';
+      let clockIn = null;
+      let duration = '0h 0m';
+      let location = null;
+
+      if (record) {
+        if (record.clock_out) status = 'Clocked Out';
+        else status = 'Online';
+
+        clockIn = record.clock_in;
+        location = record.location_in;
+
+        // Calculate duration so far
+        const start = new Date(record.clock_in).getTime();
+        const end = record.clock_out ? new Date(record.clock_out).getTime() : new Date().getTime();
+        const diffMs = end - start;
+        const hrs = Math.floor(diffMs / 3600000);
+        const mins = Math.floor((diffMs % 3600000) / 60000);
+        duration = `${hrs}h ${mins}m`;
+      }
+
+      return {
+        id: user.id || user.local_id,
+        name: user.name,
+        role: user.role,
+        status,
+        clockIn,
+        location,
+        duration,
+        userId: user.id
+      };
+    });
+
+    res.json({ success: true, data: dashboardData });
+
+  } catch (error) {
+    console.error('❌ Dashboard Error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load dashboard' });
+  }
+});
+
+// ADMIN: Export Attendance CSV
+app.get('/api/v1/attendance/export', async (req, res) => {
+  const { month } = req.query; // Format: YYYY-MM
+  console.log(`📥 Exporting attendance for ${month}`);
+
+  try {
+    if (!supabase) return res.status(500).json({ error: 'No DB' });
+
+    // Fetch all attendance for that month joined with users
+    const start = `${month}-01`;
+    const end = `${month}-31`; // Loose end date
+
+    const { data, error } = await supabase
+      .from('attendance')
+      .select(`
+                *,
+                users (name, role)
+            `)
+      .gte('date', start)
+      .lte('date', end)
+      .order('date', { ascending: false });
+
+    if (error) throw error;
+
+    // Convert to CSV
+    // Header
+    const header = ['Date', 'Name', 'Role', 'Status', 'Clock In', 'Clock Out', 'Location', 'Duration (Mins)'];
+    const csvRows = [header.join(',')];
+
+    data.forEach(row => {
+      const date = row.date;
+      const name = row.users?.name || 'Unknown';
+      const role = row.users?.role || '-';
+      const status = row.status || 'Present';
+      const inTime = row.clock_in ? new Date(row.clock_in).toLocaleTimeString() : '-';
+      const outTime = row.clock_out ? new Date(row.clock_out).toLocaleTimeString() : '-';
+      const loc = row.location_in ? row.location_in.replace(',', ' ') : '-'; // escape commas
+
+      // Duration
+      let dur = 0;
+      if (row.clock_in && row.clock_out) {
+        dur = Math.round((new Date(row.clock_out).getTime() - new Date(row.clock_in).getTime()) / 60000);
+      }
+
+      csvRows.push([date, name, role, status, inTime, outTime, loc, dur].join(','));
+    });
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`attendance-${month}.csv`);
+    return res.send(csvRows.join('\n'));
+
+  } catch (e) {
+    console.error('Export failed', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
