@@ -901,7 +901,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                         className="grad-primary flex items-center px-2 py-1.5 md:px-5 md:py-2.5 text-[8px] md:text-sm font-black rounded-lg md:rounded-xl text-white shadow-lg shadow-indigo-200 active:scale-95 touch-manipulation uppercase tracking-wider"
                     >
                         <PlusIcon className="w-3 h-3 md:w-5 md:h-5 mr-0.5 md:mr-2" />
-                        <span>Add</span>
+                        <span>Add Lead</span>
                     </button>
 
                     <div className="flex items-center p-0.5">
@@ -944,7 +944,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                 )}
 
                 {/* Search and Filter Toolbar */}
-                <div className="p-2 md:p-4 flex flex-col lg:flex-row gap-2 md:gap-4 items-center justify-between bg-white border-b border-slate-100 sticky top-12 z-10">
+                <div className={`p-2 md:p-4 flex flex-col lg:flex-row gap-2 md:gap-4 items-center justify-between bg-white border-b border-slate-100 sticky ${viewMode === 'opportunities' ? 'top-0' : 'top-11 md:top-14'} z-10`}>
                     <div className="relative w-full lg:w-[450px] group">
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3.5">
                             <SearchIcon className="w-3.5 h-3.5 text-slate-400 group-focus-within:text-primary transition-colors" />
@@ -1025,7 +1025,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                 {/* Bulk Actions Bar */}
                 {
                     selectedLeadIds.size > 0 && viewMode !== 'opportunities' && (
-                        <div className="bg-blue-50/80 backdrop-blur-sm p-2.5 border-b border-blue-100 flex flex-wrap items-center gap-2 sticky top-12 z-20">
+                        <div className={`bg-blue-50/80 backdrop-blur-sm p-2.5 border-b border-blue-100 flex flex-wrap items-center gap-2 sticky ${viewMode === 'opportunities' ? 'top-0' : 'top-11 md:top-14'} z-20`}>
                             <p className="text-[11px] font-black text-primary uppercase tracking-wider">{selectedLeadIds.size} SELECTED</p>
                             <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} className="text-[10px] py-1.5 px-2 rounded-lg border-blue-200 font-bold uppercase">
                                 <option value="">Status...</option>

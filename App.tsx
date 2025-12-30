@@ -110,85 +110,88 @@ const App: React.FC = () => {
     setIsLoading(true);
     setSearchTerm('');
 
+    // 0. Load from local DB IMMEDIATELY for instant UI response
     try {
-      // Try to fetch from backend API first
+      const initialLocalData = await db.getAllData();
+      if (initialLocalData.users && initialLocalData.users.length > 0) {
+        setUsers(initialLocalData.users);
+      }
+      if (initialLocalData.leads && initialLocalData.leads.length > 0) {
+        setLeads(initialLocalData.leads);
+      }
+      if (initialLocalData.activities) setActivities(initialLocalData.activities);
+      if (initialLocalData.tasks) setTasks(initialLocalData.tasks);
+      if (initialLocalData.salesTargets) setSalesTargets(initialLocalData.salesTargets);
+      if (initialLocalData.inventory) setInventory(initialLocalData.inventory);
+    } catch (e) {
+      console.warn('Initial local load failed:', e);
+    }
+
+    try {
+      // 1. Load users from backend (to sync/update)
       try {
-        const backendLeads = await api.getLeads();
-        console.log('📥 Fetched leads from backend:', backendLeads.length);
+        const backendUsers = await api.getUsers();
+        if (backendUsers && backendUsers.length > 0) {
+          console.log('✅ Loaded users from Supabase:', backendUsers.length);
+          setUsers(backendUsers);
 
-        // Check for specific notification lead IDs that should be assigned
-        const notificationLeadIds = ['44cbebb7-b6a3-408b-91b1-ed7a799fca10', 'bffdecec-4693-45a1-b2f6-fb147f6e6ed4'];
-        notificationLeadIds.forEach(notifLeadId => {
-          const backendLead = backendLeads.find(l => l.id === notifLeadId);
-          if (backendLead) {
-            console.log(`   🔍 [BACKEND] Notification lead ${notifLeadId}:`, {
-              found: true,
-              customer: backendLead.customerName,
-              assignedId: backendLead.assignedSalespersonId,
-              assignedIdType: typeof backendLead.assignedSalespersonId,
-              status: backendLead.status
-            });
-          } else {
-            console.log(`   ❌ [BACKEND] Notification lead ${notifLeadId}: NOT FOUND in backend response`);
-          }
-        });
+          // Sync with local DB in background
+          const syncLocalUsers = async () => {
+            try {
+              const localData = await db.getAllData();
+              const userIdMap = new Map<string, string>();
+              let changed = false;
 
-        // Log assignment info for debugging
-        if (currentUser) {
-          console.log(`👤 Current user: ${currentUser.name} (ID: ${currentUser.id}, Type: ${typeof currentUser.id}, Role: ${currentUser.role})`);
-
-          if (currentUser.role !== 'Admin') {
-            // Check all assigned leads
-            const allAssigned = backendLeads.filter(l => l.assignedSalespersonId != null && l.assignedSalespersonId !== '');
-            console.log(`   Total assigned leads from backend: ${allAssigned.length}`);
-            if (allAssigned.length > 0) {
-              console.log('   All assigned leads:', allAssigned.map(l => ({
-                id: l.id,
-                customer: l.customerName,
-                assignedId: l.assignedSalespersonId,
-                assignedIdType: typeof l.assignedSalespersonId,
-                matches: l.assignedSalespersonId === currentUser.id
-              })));
+              for (const user of backendUsers) {
+                const existingUser = localData.users.find(u => u.id === user.id || u.name === user.name);
+                if (!existingUser) {
+                  localData.users.push(user);
+                  changed = true;
+                } else {
+                  if (existingUser.id !== user.id) {
+                    userIdMap.set(existingUser.id, user.id);
+                    changed = true;
+                  }
+                  const index = localData.users.indexOf(existingUser);
+                  localData.users[index] = user;
+                }
+              }
+              if (userIdMap.size > 0) await db.updateUserIds(userIdMap);
+              if (changed) await db.saveAllData(localData);
+            } catch (err) {
+              console.warn('Background user sync failed:', err);
             }
-
-            const myLeads = backendLeads.filter(l => {
-              const matches = l.assignedSalespersonId === currentUser.id;
-              return matches;
-            });
-            console.log(`   Leads assigned to ${currentUser.name} (${currentUser.id}):`, myLeads.length);
-            if (myLeads.length > 0) {
-              console.log('   ✅ My assigned lead IDs:', myLeads.map(l => ({ id: l.id, customer: l.customerName, assignedId: l.assignedSalespersonId })));
-            } else {
-              console.log(`   ❌ No leads match user ID: ${currentUser.id}`);
-              // Show what assigned IDs exist
-              const uniqueAssignedIds = [...new Set(allAssigned.map(l => l.assignedSalespersonId).filter(Boolean))];
-              console.log(`   Available assigned IDs in backend:`, uniqueAssignedIds);
-            }
+          };
+          syncLocalUsers();
+        } else {
+          // Fallback to local users
+          const localData = await db.getAllData();
+          if (localData.users && localData.users.length > 0) {
+            setUsers(localData.users);
           }
         }
+      } catch (userError) {
+        console.warn('⚠️ Could not load users from Supabase, using local users:', userError);
+        const localData = await db.getAllData();
+        setUsers(localData.users || []);
+      }
 
-        // Always use backend leads if API is available (even if empty array)
-        // This ensures we're showing the latest data from Supabase
+      // 2. Load leads and other data
+      try {
+        const backendLeads = await api.getLeads();
+        console.log('📥 Fetched leads from backend:', backendLeads?.length);
+
         if (backendLeads !== null && backendLeads !== undefined) {
-          // Get local database leads for merging
           const localData = await db.getAllData();
-          const localLeadIds = new Set(localData.leads.map(l => l.id));
-          const localLeadMobiles = new Set(localData.leads.map(l => l.mobile));
-
-          // Process backend leads: normalize and save to local database
           const processedLeads: Lead[] = [];
 
           for (const backendLead of backendLeads) {
-            // Check if lead exists in local database (by ID or mobile)
             const existingLocalLead = localData.leads.find(l =>
               l.id === backendLead.id || l.mobile === backendLead.mobile
             );
 
-            // Ensure all required fields are present
-            // IMPORTANT: Preserve null values for assignedSalespersonId (don't convert to '')
             const leadToSave: Lead = {
               ...backendLead,
-              // Preserve null if backend says null, only use '' if undefined
               assignedSalespersonId: backendLead.assignedSalespersonId ?? null,
               status: backendLead.status || LeadStatus.New,
               leadDate: backendLead.leadDate || new Date().toISOString(),
@@ -202,158 +205,42 @@ const App: React.FC = () => {
               source: backendLead.source || 'website'
             };
 
-            // Add to processed leads array (use this for state, not raw backendLeads)
             processedLeads.push(leadToSave);
-
-            if (existingLocalLead) {
-              // Update existing lead to sync changes from backend
-              await db.updateLead(leadToSave);
-            } else {
-              // Add new lead
-              await db.addLead(leadToSave);
-            }
+            if (existingLocalLead) await db.updateLead(leadToSave);
+            else await db.addLead(leadToSave);
           }
 
-          // Use backend leads as primary source (they're the source of truth)
-          // Merge with local leads only for leads that don't exist in backend
           const backendLeadIds = new Set(processedLeads.map(l => l.id));
           const backendLeadMobiles = new Set(processedLeads.map(l => l.mobile));
-
-          // Add local leads that aren't in backend (for offline/legacy data)
           const localOnlyLeads = localData.leads.filter(
             lead => !backendLeadIds.has(lead.id) && !backendLeadMobiles.has(lead.mobile)
           );
 
-          // Combine: processed backend leads first (source of truth), then local-only leads
-          const allLeads = [...processedLeads, ...localOnlyLeads];
-          setLeads(allLeads);
+          setLeads([...processedLeads, ...localOnlyLeads]);
         } else {
-          // Fallback to local database if backend returns null/undefined
-          console.warn('⚠️ Backend returned null/undefined, using local database');
           const data = await db.getAllData();
-          setLeads(data.leads);
+          setLeads(data.leads || []);
         }
       } catch (apiError) {
-        console.warn('⚠️ Backend API not available, using local database:', apiError);
-        // Fallback to local database
+        console.warn('⚠️ Backend API not available for leads, using local database:', apiError);
         const data = await db.getAllData();
-        setLeads(data.leads);
+        setLeads(data.leads || []);
       }
 
-      // Load users from Supabase (or sync local users if none exist)
-      try {
-        const backendUsers = await api.getUsers();
-        if (backendUsers && backendUsers.length > 0) {
-          console.log('✅ Loaded users from Supabase:', backendUsers.length, backendUsers.map(u => ({ id: u.id, name: u.name })));
-          setUsers(backendUsers);
-
-          // Also save to local DB for offline access and update ID references
-          const localData = await db.getAllData();
-          const userIdMap = new Map<string, string>();
-
-          for (const user of backendUsers) {
-            const existingUser = localData.users.find(u => u.id === user.id || u.name === user.name);
-            if (!existingUser) {
-              localData.users.push(user);
-            } else {
-              // If user ID changed (local ID to Supabase UUID), create mapping
-              if (existingUser.id !== user.id) {
-                userIdMap.set(existingUser.id, user.id);
-                console.log(`🔄 Mapping user ${user.name}: ${existingUser.id} -> ${user.id}`);
-              }
-              // Update existing user with Supabase UUID
-              const index = localData.users.indexOf(existingUser);
-              localData.users[index] = user;
-            }
-          }
-
-          // Update all user ID references in the database
-          if (userIdMap.size > 0) {
-            await db.updateUserIds(userIdMap);
-          }
-
-          await db.saveAllData(localData);
-        } else {
-          // No users in Supabase, sync local users
-          console.log('⚠️ No users in Supabase, syncing local users...');
-          const localData = await db.getAllData();
-          if (localData.users && localData.users.length > 0) {
-            try {
-              console.log('📤 Syncing', localData.users.length, 'users to Supabase...');
-              const syncResult = await api.syncUsers(localData.users);
-              console.log('✅ Synced users to Supabase:', syncResult.synced, 'users');
-
-              // Reload users from Supabase to get UUIDs
-              const syncedUsers = await api.getUsers();
-              if (syncedUsers && syncedUsers.length > 0) {
-                console.log('✅ Reloaded users from Supabase after sync:', syncedUsers.length, syncedUsers.map(u => ({ id: u.id, name: u.name })));
-                setUsers(syncedUsers);
-
-                // Create a mapping from local IDs to Supabase UUIDs
-                const userIdMap = new Map<string, string>();
-                const updatedLocalData = await db.getAllData();
-                for (const supabaseUser of syncedUsers) {
-                  const localUser = updatedLocalData.users.find(u => u.name === supabaseUser.name);
-                  if (localUser && localUser.id !== supabaseUser.id) {
-                    userIdMap.set(localUser.id, supabaseUser.id);
-                    console.log(`🔄 Mapping user ${localUser.name}: ${localUser.id} -> ${supabaseUser.id}`);
-                  }
-                }
-
-                // Update all user ID references in the database (leads, activities, tasks, etc.)
-                if (userIdMap.size > 0) {
-                  await db.updateUserIds(userIdMap);
-                }
-
-                // Update users array in local DB
-                for (const supabaseUser of syncedUsers) {
-                  const localUser = updatedLocalData.users.find(u => u.name === supabaseUser.name);
-                  if (localUser && localUser.id !== supabaseUser.id) {
-                    const index = updatedLocalData.users.indexOf(localUser);
-                    updatedLocalData.users[index] = supabaseUser;
-                  }
-                }
-                await db.saveAllData(updatedLocalData);
-              } else {
-                // Fallback to local users if sync failed
-                console.warn('⚠️ No users returned after sync, using local users');
-                setUsers(localData.users);
-              }
-            } catch (syncError) {
-              console.error('❌ Failed to sync users to Supabase:', syncError);
-              // Fallback to local users
-              setUsers(localData.users);
-            }
-          } else {
-            setUsers(localData.users);
-          }
-        }
-      } catch (userError) {
-        console.warn('⚠️ Could not load users from Supabase, using local users:', userError);
-        const localData = await db.getAllData();
-        setUsers(localData.users);
-      }
-
-      // Log final users state for debugging (check what was actually set)
-      setTimeout(() => {
-        console.log('👥 Users state after load:', users.length, 'users');
-        if (users.length > 0) {
-          console.log('   User IDs:', users.map(u => ({ id: u.id, name: u.name, isLocalId: /^(user-|admin-)/.test(u.id) })));
-        }
-      }, 1000);
-
-      // Load other data from local database
+      // 3. Load other data from local database
       const data = await db.getAllData();
-      setActivities(data.activities);
-      setSalesTargets(data.salesTargets);
-      setTasks(data.tasks);
-      setInventory(data.inventory);
+      setActivities(data.activities || []);
+      setSalesTargets(data.salesTargets || []);
+      setTasks(data.tasks || []);
+      setInventory(data.inventory || []);
+
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUser]);
+
 
   useEffect(() => {
     loadData();
@@ -553,7 +440,8 @@ const App: React.FC = () => {
         visitDate: updatedLead.visitDate,
         lastRemark: updatedLead.lastRemark,
         bookingStatus: updatedLead.bookingStatus,
-        isRead: updatedLead.isRead
+        isRead: updatedLead.isRead,
+        updatedByName: currentUser?.name // Pass current user name for notifications
       };
 
       // IMPORTANT: Always include assignedSalespersonId (even if null for unassigned)
@@ -754,7 +642,70 @@ const App: React.FC = () => {
       // If we are falling back to local DB, don't show error to user as "Failed"
       // unless it's a critical data loss scenario.
       // setNotification(`❌ Failed to assign lead: ${errorMessage}`);
-      // setTimeout(() => setNotification(null), 8000);
+      // setTimeout(() => setNotification(null),      }
+
+      // Check if error is "Lead not found" (404) - likely created locally but not synced
+      const isLeadNotFound = /(Lead not found|lead with id .* could not be found|status code 404)/i.test(errorMessage) || e?.status === 404;
+      if (isLeadNotFound && updatedLead.id.startsWith('lead-')) {
+        console.log('🔄 Lead not found in backend (likely local-only). Attempting to sync create...');
+        try {
+          // Prepare lead data for creation
+          const leadToCreate: any = {
+            ...updatedLead,
+            status: updatedLead.status, // Ensure we send the *new* status 
+            assignedSalespersonId: updatedLead.assignedSalespersonId,
+            source: 'CRM (Sync Reply)'
+          };
+
+          // Remove ID so backend generates a new one (or we keep local one if backend supports it - but our backend generates UUIDs for Supabase)
+          delete leadToCreate.id;
+
+          const createdLead = await api.createLead(leadToCreate);
+          if (createdLead) {
+            console.log(`✅ Lead synced to backend! Replacing local ID ${updatedLead.id} with ${createdLead.id}`);
+
+            // 1. Delete old local lead
+            await db.deleteLead(updatedLead.id);
+
+            // 2. Add new synced lead
+            await db.addLead(createdLead);
+
+            // 3. CRITICAL: Force a full refresh from backend to sync everything
+            try {
+              const backendLeads = await api.getLeads();
+              if (backendLeads && backendLeads.length > 0) {
+                console.log(`🔄 Refreshed ${backendLeads.length} leads from backend after sync`);
+                setLeads(backendLeads);
+
+                // Also update local DB with all backend leads
+                for (const lead of backendLeads) {
+                  await db.updateLead(lead);
+                }
+              }
+            } catch (refreshErr) {
+              console.error('⚠️ Failed to refresh leads after sync:', refreshErr);
+              // Fallback: just update the one lead
+              setLeads(prev => prev.map(l => l.id === updatedLead.id ? createdLead : l));
+            }
+
+            setNotification(null); // Clear any previous error notification
+            setNotification('✅ Lead synced successfully - page refreshed');
+            setTimeout(() => setNotification(null), 3000);
+            return; // Success!
+          }
+        } catch (createErr: any) {
+          console.error('❌ Failed to sync-create lead:', createErr);
+          // Show this specific error to user so we know why recovery failed
+          let createErrMsg = createErr?.message || createErr?.toString() || 'Unknown error';
+          if (createErrMsg.includes('API Error:')) {
+            createErrMsg += ' (Server returned no details - check backend terminal)';
+          }
+          setNotification(`⚠️ Recovery failed: ${createErrMsg}`);
+          // Don't fall through to generic error - return here to let user see this specific one
+          setTimeout(() => setNotification(null), 8000);
+          return;
+        }
+      }
 
       setNotification(`⚠️ Saved locally (Backend sync failed: ${errorMessage})`);
       setTimeout(() => setNotification(null), 5000);
@@ -871,8 +822,9 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   const handleAssignLead = useCallback(async (newLeadData: NewLeadData) => {
-    const newLead: Lead = {
-      id: `lead-${Date.now()}`,
+    // 1. Prepare lead data
+    const tempId = `lead-${Date.now()}`;
+    const leadData: any = {
       ...newLeadData,
       status: LeadStatus.New,
       leadDate: new Date().toISOString(),
@@ -885,23 +837,47 @@ const App: React.FC = () => {
       missedVisitsCount: 0,
       budget: newLeadData.budget,
       purpose: newLeadData.purpose,
+      source: 'CRM',
+      createdByName: currentUser?.name || 'Admin' // Pass creator name for notifications
     };
 
-    await db.addLead(newLead);
-    setLeads(prev => [newLead, ...prev]);
+    let savedLead: Lead;
 
+    // 2. Try to save to backend API
+    try {
+      console.log('📤 Creating lead in backend:', leadData.customerName);
+      const backendLead = await api.createLead(leadData);
+      if (backendLead) {
+        console.log('✅ Lead created in backend with ID:', backendLead.id);
+        savedLead = backendLead;
+      } else {
+        throw new Error('No lead returned from API');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to save lead to backend, saving locally only:', error);
+      savedLead = {
+        ...leadData,
+        id: tempId
+      };
+    }
+
+    // 3. Save to local DB and state
+    await db.addLead(savedLead);
+    setLeads(prev => [savedLead, ...prev]);
+
+    // 4. Create local activity log
     const newActivity: Activity = {
       id: `act-${Date.now()}`,
-      leadId: newLead.id,
+      leadId: savedLead.id,
       salespersonId: currentUser?.id || '',
       type: ActivityType.Note,
       date: new Date().toISOString(),
-      remarks: `Lead created and assigned to ${users.find(u => u.id === newLead.assignedSalespersonId)?.name}.`,
-      customerName: newLead.customerName
+      remarks: `Lead created and assigned to ${users.find(u => u.id === savedLead.assignedSalespersonId)?.name || 'Unassigned'}.`,
+      customerName: savedLead.customerName
     };
     await db.addActivity(newActivity);
     setActivities(prev => [newActivity, ...prev]);
-  }, [users]);
+  }, [users, currentUser]);
 
   const handleBulkUpdate = useCallback(async (leadIds: string[], newStatus?: LeadStatus, newAssignedSalespersonId?: string) => {
     if (!currentUser) return;
@@ -920,21 +896,38 @@ const App: React.FC = () => {
 
   const handleImportLeads = useCallback(async (newLeadsData: Omit<Lead, 'id' | 'isRead' | 'missedVisitsCount' | 'lastActivityDate' | 'month'>[]) => {
     const salespersonNameToId = new Map<string, string>(users.map(u => [u.name, u.id] as [string, string]));
+    const adminUser = users.find(u => u.role === 'Admin');
 
     for (const data of newLeadsData) {
-      const adminUser = users.find(u => u.role === 'Admin');
       const salespersonId = salespersonNameToId.get(data.assignedSalespersonId) || adminUser?.id || '';
-      const lead: Lead = {
+      const leadData: any = {
         ...data,
-        id: `imported-${Date.now()}-${Math.random()}`,
+        assignedSalespersonId: salespersonId,
         isRead: false,
         missedVisitsCount: 0,
         lastActivityDate: data.leadDate,
         month: new Date(data.leadDate).toLocaleString('default', { month: 'long', year: 'numeric' }),
-        assignedSalespersonId: salespersonId,
+        source: 'Import'
       };
-      await db.addLead(lead);
+
+      try {
+        const backendLead = await api.createLead(leadData);
+        if (backendLead) {
+          await db.addLead(backendLead);
+        } else {
+          throw new Error('Import failed for one lead');
+        }
+      } catch (error) {
+        console.warn('⚠️ Import to backend failed for lead, saving locally:', data.customerName);
+        const localLead: Lead = {
+          ...leadData,
+          id: `imported-${Date.now()}-${Math.random()}`
+        };
+        await db.addLead(localLead);
+      }
     }
+
+    // Refresh leads from local DB to see everything
     const allLeads = await db.getLeads();
     setLeads(allLeads);
   }, [users]);

@@ -103,7 +103,7 @@ const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onA
         <div className="overflow-hidden">
             <div className="px-6 py-4 border-b border-border-color bg-gray-50 flex justify-between items-center">
                 <div>
-                    <h3 className="text-sm md:text-lg font-black text-gray-900 uppercase">Add</h3>
+                    <h3 className="text-sm md:text-lg font-black text-gray-900 uppercase">Add Lead</h3>
                     <p className="text-sm text-gray-500">Capture prospect details and requirements.</p>
                 </div>
             </div>

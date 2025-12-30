@@ -71,6 +71,43 @@ app.get('/api/v1/webhooks/leads', (req, res) => {
   });
 });
 
+// Helper to format Supabase lead row to Frontend camelCase object
+const formatLeadResponse = (row) => {
+  if (!row) return null;
+  const rawStatus = row.status || 'New Lead';
+  const normalizedStatus = rawStatus === 'New' ? 'New Lead' : rawStatus;
+
+  return {
+    id: row.id,
+    customerName: row.customer_name || '',
+    mobile: row.mobile || '',
+    email: row.email || '',
+    status: normalizedStatus,
+    assignedSalespersonId: row.assigned_salesperson_id || null,
+    leadDate: row.lead_date || new Date().toISOString(),
+    lastActivityDate: row.last_activity_date || row.lead_date || new Date().toISOString(),
+    month: row.month || new Date(row.lead_date || Date.now()).toLocaleString('default', { month: 'long', year: 'numeric' }),
+    modeOfEnquiry: row.mode_of_enquiry || 'Digital',
+    occupation: row.occupation || '',
+    interestedProject: row.interested_project || '',
+    interestedUnit: row.interested_unit || '',
+    temperature: row.temperature || null,
+    visitStatus: row.visit_status || 'No',
+    visitDate: row.visit_date || '',
+    nextFollowUpDate: row.next_follow_up_date || null,
+    lastRemark: row.last_remark || '',
+    bookingStatus: row.booking_status || '',
+    isRead: row.is_read ?? false,
+    missedVisitsCount: row.missed_visits_count || 0,
+    labels: row.labels || [],
+    budget: row.budget || '',
+    purpose: row.purpose || null,
+    city: row.city || '',
+    platform: row.platform || '',
+    source: row.source_website || 'website'
+  };
+};
+
 // API endpoint for frontend to get all leads
 app.get('/api/v1/leads', async (req, res) => {
   try {
@@ -81,20 +118,6 @@ app.get('/api/v1/leads', async (req, res) => {
         .select('*')
         .order('lead_date', { ascending: false });
 
-      // Debug: Log assigned leads
-      if (data && data.length > 0) {
-        const assignedLeads = data.filter(l => l.assigned_salesperson_id);
-        console.log(`📥 [GET LEADS] Fetched ${data.length} leads from Supabase`);
-        console.log(`   Assigned leads: ${assignedLeads.length}`);
-        if (assignedLeads.length > 0) {
-          console.log(`   Assigned lead IDs:`, assignedLeads.map(l => ({
-            id: l.id,
-            customer: l.customer_name,
-            assignedTo: l.assigned_salesperson_id
-          })));
-        }
-      }
-
       if (error) {
         console.error('Error fetching leads from Supabase:', error);
         return res.status(500).json({
@@ -104,45 +127,7 @@ app.get('/api/v1/leads', async (req, res) => {
         });
       }
 
-      const formattedLeads = (data || []).map(row => {
-        const rawStatus = row.status || 'New Lead';
-        const normalizedStatus = rawStatus === 'New' ? 'New Lead' : rawStatus;
-
-        return {
-          id: row.id,
-          customerName: row.customer_name || '',
-          mobile: row.mobile || '',
-          email: row.email || '',
-          status: normalizedStatus,
-          assignedSalespersonId: row.assigned_salesperson_id || null, // Preserve actual value from database
-          leadDate: row.lead_date || new Date().toISOString(),
-          lastActivityDate: row.last_activity_date || row.lead_date || new Date().toISOString(),
-          month:
-            row.month ||
-            new Date(row.lead_date || Date.now()).toLocaleString('default', {
-              month: 'long',
-              year: 'numeric'
-            }),
-          modeOfEnquiry: row.mode_of_enquiry || 'Digital',
-          occupation: row.occupation || '',
-          interestedProject: row.interested_project || '',
-          interestedUnit: row.interested_unit || '',
-          temperature: row.temperature || null,
-          visitStatus: row.visit_status || 'No',
-          visitDate: row.visit_date || '',
-          nextFollowUpDate: row.next_follow_up_date || null,
-          lastRemark: row.last_remark || '',
-          bookingStatus: row.booking_status || '',
-          isRead: row.is_read ?? false,
-          missedVisitsCount: row.missed_visits_count || 0,
-          labels: row.labels || [],
-          budget: row.budget || '',
-          purpose: row.purpose || null,
-          city: row.city || '',
-          platform: row.platform || '',
-          source: row.source_website || 'website'
-        };
-      });
+      const formattedLeads = (data || []).map(formatLeadResponse);
 
       return res.json({
         success: true,
@@ -190,6 +175,120 @@ app.get('/api/v1/leads', async (req, res) => {
       success: false,
       error: 'Failed to fetch leads',
       message: error.message
+    });
+  }
+});
+
+// Create new lead (from CRM direct add)
+app.post('/api/v1/leads', async (req, res) => {
+  console.log('\n📥 ===== POST /api/v1/leads CALLED =====');
+  console.log('Request headers:', req.headers);
+
+  try {
+    // Step 1: Parse body
+    const leadData = req.body || {};
+    console.log('📦 Step 1 - Received payload:', JSON.stringify(leadData, null, 2));
+
+    // Step 2: Initialize
+    const now = new Date();
+    console.log('📆 Step 2 - Timestamp:', now.toISOString());
+
+    // Step 3: Simple assignment (no resolution for now)
+    const resolvedAssigneeId = leadData.assignedSalespersonId || null;
+    console.log('👤 Step 3 - Assigned user ID:', resolvedAssigneeId);
+
+    // Step 4: Build lead object
+    console.log('🔨 Step 4 - Building lead object...');
+    const newLead = {
+      customer_name: leadData.customerName || '',
+      mobile: leadData.mobile || null,
+      email: leadData.email || null,
+      status: leadData.status || 'New Lead',
+      assigned_salesperson_id: resolvedAssigneeId,
+      lead_date: leadData.leadDate || now.toISOString(),
+      last_activity_date: now.toISOString(),
+      month: leadData.month || now.toLocaleString('default', { month: 'long', year: 'numeric' }),
+      mode_of_enquiry: leadData.modeOfEnquiry || 'Direct',
+      occupation: leadData.occupation || null,
+      interested_project: leadData.interestedProject || '',
+      interested_unit: leadData.interestedUnit || null,
+      temperature: leadData.temperature || null,
+      visit_status: leadData.visitStatus || 'No',
+      visit_date: leadData.visitDate || null,
+      next_follow_up_date: leadData.nextFollowUpDate || null,
+      last_remark: leadData.lastRemark || leadData.remarks || 'New lead created.',
+      booking_status: leadData.bookingStatus || null,
+      is_read: leadData.isRead ?? false,
+      missed_visits_count: leadData.missedVisitsCount || 0,
+      labels: leadData.labels || [],
+      budget: leadData.budget || null,
+      purpose: leadData.purpose || null,
+      city: leadData.city || null,
+      platform: leadData.platform || null,
+      source_website: leadData.source || 'CRM'
+    };
+    console.log('✅ Step 4 - Lead object built');
+
+    // Step 5: Save to database
+    console.log('💾 Step 5 - Attempting to save...');
+    console.log('   Supabase available:', !!supabase);
+
+    if (supabase) {
+      console.log('   → Using Supabase');
+      const { data, error } = await supabase
+        .from('leads')
+        .insert(newLead)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('❌ Supabase INSERT error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        return res.status(500).json({
+          success: false,
+          error: 'Database insertion failed',
+          message: error.message || 'Unknown database error',
+          details: error.details,
+          hint: error.hint
+        });
+      }
+
+      console.log('✅ Lead saved to Supabase:', data.id);
+      const formattedLead = formatLeadResponse(data);
+
+      return res.status(201).json({
+        success: true,
+        lead: formattedLead
+      });
+    } else {
+      // In-memory fallback
+      console.log('   → Using in-memory storage (Supabase not configured)');
+      const inMemLeadId = `lead-${Date.now()}`;
+      const inMemLead = { ...leadData, id: inMemLeadId };
+      receivedLeads.push(inMemLead);
+
+      console.log('✅ Lead saved to memory:', inMemLeadId);
+      return res.status(201).json({
+        success: true,
+        lead: { ...inMemLead, id: inMemLeadId }
+      });
+    }
+  } catch (error) {
+    console.error('\n❌ ===== CRASH IN POST /api/v1/leads =====');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('========================================\n');
+
+    return res.status(500).json({
+      success: false,
+      error: 'Server crash',
+      message: error.message || 'Unknown error occurred',
+      type: error.constructor.name
     });
   }
 });
@@ -646,43 +745,58 @@ app.put('/api/v1/leads/:id', async (req, res) => {
     }
 
     const row = updatedLead;
+
+    // --- NOTIFICATION LOGIC FOR STATUS CHANGE / PROGRESS ---
+    // Notify Admin if status changed (and it wasn't just a new assignment which is handled above)
+    // We check if payload has 'status' which implies an intentional status update
+    if (supabase && payload.status && row && row.status !== 'New Lead') {
+      // Avoid notifying for initial status if identical (optimized frontend might send it)
+      // For now, simpler: if status is being updated, notify admin.
+      // Refinement: Ideally we'd compare with previous status, but we updated row already.
+      // However, 'row' is the UPDATED lead.
+
+      try {
+        // Construct a message based on the update
+        const statusMsg = `Lead status updated to "${row.status}" for ${row.customer_name || 'Customer'}${payload.updatedByName ? ` by ${payload.updatedByName}` : ''}`;
+
+        const notificationId = `notif-prog-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        const notification = {
+          id: notificationId,
+          type: 'lead_progress',
+          message: statusMsg,
+          lead_id: id,
+          lead_data: {
+            customerName: row.customer_name,
+            status: row.status,
+            previousStatus: 'Unknown' // We didn't track previous status here easily without another query
+          },
+          target_role: 'Admin',
+          target_user_id: null,
+          created_at: new Date().toISOString(),
+          is_read: false
+        };
+
+        // Don't duplicate "Assignment" notifications if the status change was part of an assignment
+        // But usually assignment changes owner, this changes status.
+
+        const { error: progNotifError } = await supabase
+          .from('notifications')
+          .insert(notification);
+
+        if (!progNotifError) {
+          console.log(`🔔 Admin notification created for lead progress: ${statusMsg}`);
+        }
+      } catch (e) {
+        console.error('Error creating progress notification:', e);
+      }
+    }
+    // -------------------------------------------------------
+
     const rawStatus = row.status || 'New Lead';
     const normalizedStatus = rawStatus === 'New' ? 'New Lead' : rawStatus;
 
-    const formattedLead = {
-      id: row.id,
-      customerName: row.customer_name || '',
-      mobile: row.mobile || '',
-      email: row.email || '',
-      status: normalizedStatus,
-      assignedSalespersonId: row.assigned_salesperson_id || null, // Preserve actual value from database (null if not assigned)
-      leadDate: row.lead_date || new Date().toISOString(),
-      lastActivityDate: row.last_activity_date || row.lead_date || new Date().toISOString(),
-      month:
-        row.month ||
-        new Date(row.lead_date || Date.now()).toLocaleString('default', {
-          month: 'long',
-          year: 'numeric'
-        }),
-      modeOfEnquiry: row.mode_of_enquiry || 'Digital',
-      occupation: row.occupation || '',
-      interestedProject: row.interested_project || '',
-      interestedUnit: row.interested_unit || '',
-      temperature: row.temperature || null,
-      visitStatus: row.visit_status || 'No',
-      visitDate: row.visit_date || '',
-      nextFollowUpDate: row.next_follow_up_date || null,
-      lastRemark: row.last_remark || '',
-      bookingStatus: row.booking_status || '',
-      isRead: row.is_read ?? false,
-      missedVisitsCount: row.missed_visits_count || 0,
-      labels: row.labels || [],
-      budget: row.budget || '',
-      purpose: row.purpose || null,
-      city: row.city || '',
-      platform: row.platform || '',
-      source: row.source_website || 'website'
-    };
+    const formattedLead = formatLeadResponse(row);
 
     res.json({
       success: true,
@@ -1258,9 +1372,15 @@ app.post('/api/v1/users/sync', async (req, res) => {
 
             if (updateError) throw updateError;
 
-            // Try to set local_id separately (in case column exists but wasn't in update)
-            await supabase.rpc('set_local_id', { user_id: existingUser.id, local_id: user.id })
-              .catch(() => { }); // Ignore if function/column doesn't exist
+            // Try to set local_id directly (simpler than RPC)
+            try {
+              await supabase
+                .from('users')
+                .update({ local_id: user.id })
+                .eq('id', existingUser.id);
+            } catch (localIdErr) {
+              // Ignore if column doesn't exist
+            }
 
             syncedUsers.push({ localId: user.id, supabaseId: existingUser.id, user: updated || existingUser });
           } catch (err) {

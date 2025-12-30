@@ -64,7 +64,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ users, onLogin }) => {
                 className="input-style appearance-none bg-white text-slate-900 border-slate-300 focus:border-blue-600"
                 style={{ backgroundImage: 'none' }}
               >
-                <option value="" disabled>-- Select your profile --</option>
+                <option value="" disabled>
+                  {users.length === 0 ? 'Loading profiles...' : '-- Select your profile --'}
+                </option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name} ({user.role})

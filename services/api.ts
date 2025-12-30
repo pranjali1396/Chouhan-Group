@@ -74,6 +74,14 @@ class ApiService {
     }
   }
 
+  async createLead(leadData: any) {
+    const response = await this.request<{ success: boolean; lead: any }>('/leads', {
+      method: 'POST',
+      body: JSON.stringify(leadData),
+    });
+    return response.lead;
+  }
+
   async updateLead(id: string, updates: any) {
     const response = await this.request<{ success: boolean; lead: any }>(`/leads/${id}`, {
       method: 'PUT',
