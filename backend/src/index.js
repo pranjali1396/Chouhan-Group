@@ -1489,8 +1489,17 @@ app.listen(PORT, () => {
 
 // ADMIN: Get dashboard summary (All users status today)
 app.get('/api/v1/attendance/dashboard', async (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
-  console.log(`📥 GET /api/v1/attendance/dashboard for ${today}`);
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+
+  // Get Monday of this week
+  const dayOfWeek = now.getDay();
+  const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+  const monday = new Date(new Date().setDate(diffToMonday));
+  monday.setHours(0, 0, 0, 0);
+  const startOfWeek = monday.toISOString().split('T')[0];
+
+  console.log(`📥 GET /api/v1/attendance/dashboard | Today: ${today} | Week starts: ${startOfWeek}`);
 
   try {
     if (!supabase) {
@@ -1508,21 +1517,34 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
 
     if (userError) throw userError;
 
-    // 2. Get Today's Attendance for All
-    const { data: attendance, error: attError } = await supabase
+    // 2. Get Weekly Attendance (including today)
+    const { data: allWeeklyAttendance, error: attError } = await supabase
       .from('attendance')
       .select('*')
-      .eq('date', today);
+      .gte('date', startOfWeek)
+      .lte('date', today);
 
     if (attError) throw attError;
 
     // 3. Merge Data
     const mappedAttendanceIds = new Set();
+    const todayAttendance = allWeeklyAttendance.filter(a => a.date === today);
 
     const dashboardData = users.map(user => {
-      // Find matching attendance record
-      // Check both UUID (standard) and Local ID (legacy/fallback)
-      const record = attendance.find(a => a.user_id === user.id || a.user_id === user.local_id);
+      // Find today's record
+      const record = todayAttendance.find(a => a.user_id === user.id || a.user_id === user.local_id);
+
+      // Calculate weekly stats
+      const userWeeklyRecords = allWeeklyAttendance.filter(a => a.user_id === user.id || a.user_id === user.local_id);
+      let totalWeeklyMs = 0;
+      userWeeklyRecords.forEach(r => {
+        const start = new Date(r.clock_in).getTime();
+        const end = r.clock_out ? new Date(r.clock_out).getTime() : (r.date === today ? new Date().getTime() : new Date(r.clock_in).getTime());
+        totalWeeklyMs += (end - start);
+      });
+
+      const weeklyHrs = Math.floor(totalWeeklyMs / 3600000);
+      const weeklyMins = Math.floor((totalWeeklyMs % 3600000) / 60000);
 
       let status = 'Offline';
       let clockIn = null;
@@ -1537,7 +1559,6 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         clockIn = record.clock_in;
         location = record.location_in;
 
-        // Calculate duration so far
         const start = new Date(record.clock_in).getTime();
         const end = record.clock_out ? new Date(record.clock_out).getTime() : new Date().getTime();
         const diffMs = end - start;
@@ -1554,13 +1575,14 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         clockIn,
         location,
         duration,
+        weeklyHours: `${weeklyHrs}h ${weeklyMins}m`,
         userId: user.id
       };
     });
 
     // 4. Add Orphans (Attendance records with no matching User ID)
-    const orphans = attendance.filter(a => !mappedAttendanceIds.has(a.id));
-    orphans.forEach(record => {
+    const todayOrphans = todayAttendance.filter(a => !mappedAttendanceIds.has(a.id));
+    todayOrphans.forEach(record => {
       const start = new Date(record.clock_in).getTime();
       const end = record.clock_out ? new Date(record.clock_out).getTime() : new Date().getTime();
       const diffMs = end - start;
@@ -1575,6 +1597,7 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         clockIn: record.clock_in,
         location: record.location_in,
         duration: `${hrs}h ${mins}m`,
+        weeklyHours: 'N/A',
         userId: record.user_id
       });
     });
@@ -1595,40 +1618,46 @@ app.get('/api/v1/attendance/export', async (req, res) => {
   try {
     if (!supabase) return res.status(500).json({ error: 'No DB' });
 
-    // Fetch all attendance for that month joined with users
-    const start = `${month}-01`;
-    const end = `${month}-31`; // Loose end date
+    // 1. Get All Users for mapping (Safer than joins if schema is loose)
+    const { data: users } = await supabase.from('users').select('id, name, role, local_id');
+    const userMap = {};
+    (users || []).forEach(u => {
+      userMap[u.id] = u;
+      if (u.local_id) userMap[u.local_id] = u;
+    });
 
-    const { data, error } = await supabase
+    // 2. Fetch all attendance for that month
+    const start = `${month}-01`;
+    const end = `${month}-31`;
+
+    const { data: attendance, error } = await supabase
       .from('attendance')
-      .select(`
-                *,
-                users (name, role)
-            `)
+      .select('*')
       .gte('date', start)
       .lte('date', end)
       .order('date', { ascending: false });
 
     if (error) throw error;
 
-    // Convert to CSV
-    // Header
+    // 3. Convert to CSV
     const header = ['Date', 'Name', 'Role', 'Status', 'Clock In', 'Clock Out', 'Location', 'Duration (Mins)'];
     const csvRows = [header.join(',')];
 
-    data.forEach(row => {
+    attendance.forEach(row => {
+      const user = userMap[row.user_id] || { name: 'Unknown', role: '-' };
       const date = row.date;
-      const name = row.users?.name || 'Unknown';
-      const role = row.users?.role || '-';
+      const name = user.name;
+      const role = user.role;
       const status = row.status || 'Present';
       const inTime = row.clock_in ? new Date(row.clock_in).toLocaleTimeString() : '-';
       const outTime = row.clock_out ? new Date(row.clock_out).toLocaleTimeString() : '-';
-      const loc = row.location_in ? row.location_in.replace(',', ' ') : '-'; // escape commas
+      const loc = row.location_in ? `"${row.location_in.replace(/"/g, '""')}"` : '-'; // escape commas
 
-      // Duration
       let dur = 0;
       if (row.clock_in && row.clock_out) {
         dur = Math.round((new Date(row.clock_out).getTime() - new Date(row.clock_in).getTime()) / 60000);
+      } else if (row.clock_in && row.date === new Date().toISOString().split('T')[0]) {
+        dur = Math.round((new Date().getTime() - new Date(row.clock_in).getTime()) / 60000);
       }
 
       csvRows.push([date, name, role, status, inTime, outTime, loc, dur].join(','));
@@ -1639,8 +1668,8 @@ app.get('/api/v1/attendance/export', async (req, res) => {
     return res.send(csvRows.join('\n'));
 
   } catch (e) {
-    console.error('Export failed', e);
-    res.status(500).json({ error: e.message });
+    console.error('❌ Export failed:', e);
+    res.status(500).json({ success: false, error: `Export Error: ${e.message}` });
   }
 });
 

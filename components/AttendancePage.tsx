@@ -237,6 +237,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Clock In</th>
                     <th className="px-4 py-3">Duration</th>
+                    <th className="px-4 py-3 font-black text-indigo-600">Weekly</th>
                     <th className="px-4 py-3">Location</th>
                   </tr>
                 </thead>
@@ -260,6 +261,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
                           {user.clockIn ? new Date(user.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                         </td>
                         <td className="px-4 py-3">{user.duration}</td>
+                        <td className="px-4 py-3 font-black text-indigo-600">{user.weeklyHours || '0h 0m'}</td>
                         <td className="px-4 py-3 text-xs text-gray-400 truncate max-w-[150px]" title={user.location || ''}>
                           {user.location || '-'}
                         </td>
