@@ -1632,7 +1632,11 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
 
   try {
     if (!supabase) {
-      return res.json({ success: true, data: [] });
+      console.warn('⚠️ Dashboard requested but Supabase is NOT connected.');
+      return res.status(503).json({
+        success: false,
+        error: 'Database not connected. Please restart the backend.'
+      });
     }
 
     // 1. Get All Users
@@ -1651,9 +1655,12 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
     if (attError) throw attError;
 
     // 3. Merge Data
+    const mappedAttendanceIds = new Set();
+
     const dashboardData = users.map(user => {
       // Find matching attendance record
-      const record = attendance.find(a => a.user_id === user.id);
+      // Check both UUID (standard) and Local ID (legacy/fallback)
+      const record = attendance.find(a => a.user_id === user.id || a.user_id === user.local_id);
 
       let status = 'Offline';
       let clockIn = null;
@@ -1661,6 +1668,7 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
       let location = null;
 
       if (record) {
+        mappedAttendanceIds.add(record.id);
         if (record.clock_out) status = 'Clocked Out';
         else status = 'Online';
 
@@ -1686,6 +1694,27 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         duration,
         userId: user.id
       };
+    });
+
+    // 4. Add Orphans (Attendance records with no matching User ID)
+    const orphans = attendance.filter(a => !mappedAttendanceIds.has(a.id));
+    orphans.forEach(record => {
+      const start = new Date(record.clock_in).getTime();
+      const end = record.clock_out ? new Date(record.clock_out).getTime() : new Date().getTime();
+      const diffMs = end - start;
+      const hrs = Math.floor(diffMs / 3600000);
+      const mins = Math.floor((diffMs % 3600000) / 60000);
+
+      dashboardData.push({
+        id: record.user_id,
+        name: `Unknown User (${record.user_id.substring(0, 6)}...)`,
+        role: 'Guest',
+        status: record.clock_out ? 'Clocked Out' : 'Online',
+        clockIn: record.clock_in,
+        location: record.location_in,
+        duration: `${hrs}h ${mins}m`,
+        userId: record.user_id
+      });
     });
 
     res.json({ success: true, data: dashboardData });

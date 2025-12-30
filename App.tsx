@@ -110,70 +110,82 @@ const App: React.FC = () => {
     setIsLoading(true);
     setSearchTerm('');
 
-    // 0. Load from local DB IMMEDIATELY for instant UI response
     try {
-      const initialLocalData = await db.getAllData();
-      if (initialLocalData.users && initialLocalData.users.length > 0) {
-        setUsers(initialLocalData.users);
-      }
-      if (initialLocalData.leads && initialLocalData.leads.length > 0) {
-        setLeads(initialLocalData.leads);
-      }
-      if (initialLocalData.activities) setActivities(initialLocalData.activities);
-      if (initialLocalData.tasks) setTasks(initialLocalData.tasks);
-      if (initialLocalData.salesTargets) setSalesTargets(initialLocalData.salesTargets);
-      if (initialLocalData.inventory) setInventory(initialLocalData.inventory);
-    } catch (e) {
-      console.warn('Initial local load failed:', e);
-    }
-
-    try {
-      // 1. Load users from backend (to sync/update)
+      // 0. Load from local DB IMMEDIATELY for instant UI response
       try {
-        const backendUsers = await api.getUsers();
-        if (backendUsers && backendUsers.length > 0) {
-          console.log('✅ Loaded users from Supabase:', backendUsers.length);
-          setUsers(backendUsers);
-
-          // Sync with local DB in background
-          const syncLocalUsers = async () => {
-            try {
-              const localData = await db.getAllData();
-              const userIdMap = new Map<string, string>();
-              let changed = false;
-
-              for (const user of backendUsers) {
-                const existingUser = localData.users.find(u => u.id === user.id || u.name === user.name);
-                if (!existingUser) {
-                  localData.users.push(user);
-                  changed = true;
-                } else {
-                  if (existingUser.id !== user.id) {
-                    userIdMap.set(existingUser.id, user.id);
-                    changed = true;
-                  }
-                  const index = localData.users.indexOf(existingUser);
-                  localData.users[index] = user;
-                }
-              }
-              if (userIdMap.size > 0) await db.updateUserIds(userIdMap);
-              if (changed) await db.saveAllData(localData);
-            } catch (err) {
-              console.warn('Background user sync failed:', err);
-            }
-          };
-          syncLocalUsers();
-        } else {
-          // Fallback to local users
-          const localData = await db.getAllData();
-          if (localData.users && localData.users.length > 0) {
-            setUsers(localData.users);
-          }
+        const initialLocalData = await db.getAllData();
+        if (initialLocalData.users && initialLocalData.users.length > 0) {
+          setUsers(initialLocalData.users);
         }
-      } catch (userError) {
-        console.warn('⚠️ Could not load users from Supabase, using local users:', userError);
-        const localData = await db.getAllData();
-        setUsers(localData.users || []);
+        if (initialLocalData.leads && initialLocalData.leads.length > 0) {
+          setLeads(initialLocalData.leads);
+        }
+        if (initialLocalData.activities) setActivities(initialLocalData.activities);
+        if (initialLocalData.tasks) setTasks(initialLocalData.tasks);
+        if (initialLocalData.salesTargets) setSalesTargets(initialLocalData.salesTargets);
+        if (initialLocalData.inventory) setInventory(initialLocalData.inventory);
+      } catch (e) {
+        console.warn('Initial local load failed:', e);
+      }
+
+      try {
+        // 1. Load users from backend (to sync/update)
+        try {
+          const backendUsers = await api.getUsers();
+
+          if (backendUsers && backendUsers.length > 0) {
+            console.log('✅ Loaded users from Supabase:', backendUsers.length);
+            setUsers(backendUsers);
+
+            // Sync with local DB in background
+            const syncLocalUsers = async () => {
+              try {
+                const localData = await db.getAllData();
+                const userIdMap = new Map<string, string>();
+                let changed = false;
+
+                for (const user of backendUsers) {
+                  const existingUser = localData.users.find(u => u.id === user.id || u.name === user.name);
+                  if (!existingUser) {
+                    localData.users.push(user);
+                    changed = true;
+                  } else {
+                    if (existingUser.id !== user.id) {
+                      userIdMap.set(existingUser.id, user.id);
+                      changed = true;
+                    }
+                    const index = localData.users.indexOf(existingUser);
+                    localData.users[index] = user;
+                  }
+                }
+                if (userIdMap.size > 0) await db.updateUserIds(userIdMap);
+                if (changed) await db.saveAllData(localData);
+              } catch (e) {
+                console.error('Local sync failed', e);
+              }
+            };
+            syncLocalUsers();
+          } else {
+            // Backend is empty! Sync UP from local
+            const localData = await db.getAllData();
+            if (localData.users && localData.users.length > 0) {
+              console.log('📤 Backend empty. Syncing local users up...');
+              await api.syncUsers(localData.users);
+              // Re-fetch to get the new IDs
+              const newUsers = await api.getUsers();
+              if (newUsers.length > 0) setUsers(newUsers);
+              else setUsers(localData.users);
+            } else {
+              setUsers([]);
+            }
+          }
+        } catch (err) {
+          console.warn('Backend user load failed, using local:', err);
+          const localData = await db.getAllData();
+          setUsers(localData.users || []);
+        }
+      } catch (e) {
+        console.error('Critical user load error', e);
       }
 
       // 2. Load leads and other data
@@ -628,7 +640,7 @@ const App: React.FC = () => {
             l.id === updatedLead.id ? originalLeadForRollback : l
           )
         );
-
+  
         // Revert local DB update
         await db.updateLead(originalLeadForRollback);
       }
