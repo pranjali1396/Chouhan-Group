@@ -1868,7 +1868,16 @@ app.get('/api/v1/attendance/:userId', async (req, res) => {
       console.error('❌ Monthly count error:', countError);
     }
 
-    // 4. Calculate stats
+    // 4. Fetch last 7 days for personal history
+    const sevenDaysAgo = new Date(now.setDate(now.getDate() - 7)).toISOString().split('T')[0];
+    const { data: history } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('user_id', dbUserId)
+      .gte('date', sevenDaysAgo)
+      .order('date', { ascending: false });
+
+    // 5. Calculate stats
     let status = 'NotClockedIn';
     let clockInTime = null;
     let clockOutTime = null;
@@ -1883,7 +1892,7 @@ app.get('/api/v1/attendance/:userId', async (req, res) => {
 
       // Calculate duration
       const start = new Date(todayRecord.clock_in).getTime();
-      const end = todayRecord.clock_out ? new Date(todayRecord.clock_out).getTime() : now.getTime();
+      const end = todayRecord.clock_out ? new Date(todayRecord.clock_out).getTime() : new Date().getTime();
       hoursToday = end - start;
     }
 
@@ -1899,7 +1908,8 @@ app.get('/api/v1/attendance/:userId', async (req, res) => {
       summary: {
         hoursToday,
         daysThisMonth: monthlyCount || 0
-      }
+      },
+      history: history || []
     });
 
   } catch (error) {

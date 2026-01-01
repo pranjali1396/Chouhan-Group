@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { MapPinIcon } from './Icons';
 
-export type AttendanceStatus = 'NotClockedIn' | 'ClockingIn' | 'ClockedIn' | 'ClockingOut' | 'Error';
+export type AttendanceStatus = 'NotClockedIn' | 'ClockingIn' | 'ClockedIn' | 'ClockingOut' | 'ClockedOut' | 'Error';
 
 interface AttendanceCardProps {
     status: AttendanceStatus;
     clockInTime: Date | null;
+    clockOutTime?: Date | null;
     location: string | null;
     error: string | null;
     onClockIn: () => void;
     onClockOut: () => void;
 }
 
-const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, location, error, onClockIn, onClockOut }) => {
+const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, clockOutTime, location, error, onClockIn, onClockOut }) => {
 
     const getStatusMessage = () => {
         switch (status) {
@@ -26,16 +27,27 @@ const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, lo
                 return (
                     <div>
                         <p className="text-sm font-semibold text-green-600">
-                            Clocked in at: {clockInTime?.toLocaleTimeString()}
+                            Clocked in at: {clockInTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
-                        <p className="text-xs text-text-secondary flex items-center mt-1">
+                        <p className="text-xs text-text-secondary flex items-center mt-1 font-medium">
                             <MapPinIcon className="w-4 h-4 mr-1" />
                             {location}
                         </p>
                     </div>
                 );
+            case 'ClockedOut':
+                return (
+                    <div>
+                        <p className="text-sm font-semibold text-slate-600">
+                            Shift Ended: {clockOutTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                            In: {clockInTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                    </div>
+                );
             case 'Error':
-                return <p className="text-sm text-red-500">{error}</p>;
+                return <p className="text-sm text-red-500 font-medium">{error}</p>;
         }
     };
 

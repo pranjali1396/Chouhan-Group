@@ -155,8 +155,9 @@ class ApiService {
   async getAttendanceStatus(userId: string) {
     return this.request<{
       success: true;
-      attendance: { status: string; clockInTime: string | null; location: string | null };
+      attendance: { status: string; clockInTime: string | null; clockOutTime?: string | null; location: string | null };
       summary: { hoursToday: number; daysThisMonth: number };
+      history?: any[];
     }>(`/attendance/${userId}`);
   }
 

@@ -1049,7 +1049,7 @@ const App: React.FC = () => {
     setActiveView('Dashboard');
   }, [currentUser]);
 
-  // Presence Heartbeat
+  // Presence Heartbeat & Fast Offline on Exit
   useEffect(() => {
     if (!currentUser) return;
 
@@ -1057,9 +1057,29 @@ const App: React.FC = () => {
       api.attendancePresence(currentUser.id).catch(() => { });
     };
 
+    const notifyOffline = () => {
+      // Use standard fetch with 'keepalive' for reliability during tab close
+      const apiBaseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:5000'
+        : 'https://chouhan-crm-backend-staging.onrender.com';
+
+      fetch(`${apiBaseUrl}/api/v1/attendance/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id }),
+        keepalive: true
+      });
+    };
+
     sendHeartbeat();
     const interval = setInterval(sendHeartbeat, 60000); // 1 minute
-    return () => clearInterval(interval);
+
+    window.addEventListener('beforeunload', notifyOffline);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', notifyOffline);
+    };
   }, [currentUser]);
 
   const handleSearchResultClick = useCallback((lead: Lead) => {

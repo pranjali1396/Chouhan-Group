@@ -17,10 +17,12 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
   // State
   const [status, setStatus] = useState<AttendanceStatus>('NotClockedIn');
   const [clockInTime, setClockInTime] = useState<Date | null>(null);
+  const [clockOutTime, setClockOutTime] = useState<Date | null>(null);
   const [location, setLocation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hoursToday, setHoursToday] = useState<string>('0h 0m');
   const [daysThisMonth, setDaysThisMonth] = useState<number>(0);
+  const [history, setHistory] = useState<any[]>([]);
 
   // Admin Dashboard State
   const [dashboardData, setDashboardData] = useState<any[]>([]);
@@ -70,13 +72,20 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
             setDaysThisMonth(res.summary.daysThisMonth);
             setHoursToday(formatDuration(res.summary.hoursToday));
           }
+          if (res.history) {
+            setHistory(res.history);
+          }
           if (res.attendance) {
             if (res.attendance.status === 'ClockedIn') {
               setStatus('ClockedIn');
               setClockInTime(new Date(res.attendance.clockInTime!));
+              setClockOutTime(null);
               setLocation(res.attendance.location || null);
             } else if (res.attendance.status === 'ClockedOut') {
-              setStatus('NotClockedIn');
+              setStatus('ClockedOut');
+              setClockOutTime(new Date(res.attendance.clockOutTime!));
+            } else {
+              setClockOutTime(null);
             }
           }
         }
@@ -134,10 +143,16 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
     setError(null);
 
     try {
-      await api.clockOut(currentUser.id);
-      setStatus('NotClockedIn');
-      setClockInTime(null);
-      setLocation(null);
+      const res = await api.clockOut(currentUser.id);
+      setStatus('ClockedOut');
+      setClockOutTime(new Date());
+
+      // Refresh status and history to get final calculated hours and logs
+      const statusRes = await api.getAttendanceStatus(currentUser.id);
+      if (statusRes.success) {
+        if (statusRes.summary) setHoursToday(formatDuration(statusRes.summary.hoursToday));
+        if (statusRes.history) setHistory(statusRes.history);
+      }
       // Refresh dashboard if admin
       if (isAdmin) {
         const res = await api.getAttendanceDashboard();
@@ -214,6 +229,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
           <AttendanceCard
             status={status}
             clockInTime={clockInTime}
+            clockOutTime={clockOutTime}
             location={location}
             error={error}
             onClockIn={handleClockIn}
@@ -308,17 +324,54 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
               </table>
             </div>
           ) : (
-            <div className="text-[11px] md:text-sm text-slate-600 space-y-2">
-              <p className="font-medium">Recent Activity</p>
-              <div className="border border-slate-100 rounded-lg p-3 bg-slate-50">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-slate-700">Today</span>
-                  <span className="text-slate-500 text-xs">{hoursToday}</span>
-                </div>
-                <div className="mt-2 text-xs text-slate-500 grid grid-cols-2 gap-2">
-                  <div>In: {clockInTime ? clockInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</div>
-                  <div>Out: -</div>
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-black text-slate-800 uppercase tracking-wider">Recent Activity (Last 7 Days)</p>
+                <div className="text-[10px] font-black text-slate-400 uppercase">Total: {history.length} Records</div>
+              </div>
+
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                {history.length > 0 ? (
+                  history.map((record) => {
+                    const isToday = record.date === new Date().toISOString().split('T')[0];
+                    const start = new Date(record.clock_in);
+                    const end = record.clock_out ? new Date(record.clock_out) : (isToday ? new Date() : start);
+                    const dur = formatDuration(end.getTime() - start.getTime());
+
+                    return (
+                      <div key={record.id || record.date} className={`border rounded-xl p-3 transition-all ${isToday ? 'bg-indigo-50/50 border-indigo-100 ring-1 ring-indigo-100' : 'bg-slate-50 border-slate-100 hover:bg-white hover:shadow-sm'}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-slate-800">{new Date(record.date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                            {isToday && <span className="bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase leading-none">Today</span>}
+                          </div>
+                          <span className="text-xs font-black text-indigo-600">{dur}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-slate-400 font-black uppercase tracking-tighter">Clock In</span>
+                            <span className="text-xs font-bold text-slate-700">{start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-slate-400 font-black uppercase tracking-tighter">Clock Out</span>
+                            <span className="text-xs font-bold text-slate-700">{record.clock_out ? new Date(record.clock_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (isToday ? 'Active' : '-')}</span>
+                          </div>
+                        </div>
+                        {record.location_in && (
+                          <div className="mt-2 flex items-center text-[9px] text-slate-400 italic truncate border-t border-slate-100 pt-2">
+                            <MapPinIcon className="w-2.5 h-2.5 mr-1 flex-shrink-0" />
+                            {record.location_in}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                    <ClockIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs text-slate-400 font-medium">No activity recorded yet.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
