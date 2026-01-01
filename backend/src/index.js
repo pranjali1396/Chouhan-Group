@@ -1490,56 +1490,79 @@ app.listen(PORT, () => {
 // In-memory presence tracking (UserID -> LastSeen timestamp)
 const UserPresence = new Map();
 
-// ADMIN: Get dashboard summary (All users status today)
+// PRESENCE: Logout
+app.post('/api/v1/attendance/logout', async (req, res) => {
+  const { userId, clockOut } = req.body;
+  console.log(`👤 Logout presence for ${userId} (clockOut: ${!!clockOut})`);
+
+  if (userId) {
+    UserPresence.delete(userId);
+
+    if (clockOut && supabase) {
+      try {
+        // Resolve user ID
+        let dbUserId = userId;
+        if (userId.startsWith('user-') || userId.startsWith('admin-')) {
+          const { data: user } = await supabase.from('users').select('id').eq('local_id', userId).maybeSingle();
+          if (user) dbUserId = user.id;
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        // Check if clocked in without clock out
+        const { data: activeRecord } = await supabase
+          .from('attendance')
+          .select('id')
+          .eq('user_id', dbUserId)
+          .eq('date', today)
+          .is('clock_out', null)
+          .maybeSingle();
+
+        if (activeRecord) {
+          await supabase
+            .from('attendance')
+            .update({ clock_out: new Date().toISOString() })
+            .eq('id', activeRecord.id);
+          console.log(`✅ Auto-clocked out ${userId} on logout`);
+        }
+      } catch (err) {
+        console.error('❌ Auto-clock-out failed during logout:', err);
+      }
+    }
+  }
+  res.json({ success: true });
+});
+
+// Update Dashboard Status Logic (In the dashboard endpoint block)
+// I'll re-apply the dashboard logic to change 'Away' to 'Offline'
 app.get('/api/v1/attendance/dashboard', async (req, res) => {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
-
-  // Get Monday of this week
   const dayOfWeek = now.getDay();
   const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
   const monday = new Date(new Date().setDate(diffToMonday));
   monday.setHours(0, 0, 0, 0);
   const startOfWeek = monday.toISOString().split('T')[0];
 
-  console.log(`📥 GET /api/v1/attendance/dashboard | Today: ${today} | Week starts: ${startOfWeek}`);
-
   try {
-    if (!supabase) {
-      console.warn('⚠️ Dashboard requested but Supabase is NOT connected.');
-      return res.status(503).json({
-        success: false,
-        error: 'Database not connected. Please restart the backend.'
-      });
-    }
+    if (!supabase) return res.status(503).json({ success: false, error: 'Database not connected.' });
 
-    // 1. Get All Users
-    const { data: users, error: userError } = await supabase
-      .from('users')
-      .select('id, name, role, local_id');
-
+    const { data: users, error: userError } = await supabase.from('users').select('id, name, role, local_id');
     if (userError) throw userError;
 
-    // 2. Get Weekly Attendance (including today)
     const { data: allWeeklyAttendance, error: attError } = await supabase
       .from('attendance')
       .select('*')
       .gte('date', startOfWeek)
       .lte('date', today);
-
     if (attError) throw attError;
 
-    // 3. Merge Data
     const mappedAttendanceIds = new Set();
     const todayAttendance = allWeeklyAttendance.filter(a => a.date === today);
 
     const dashboardData = users.map(user => {
       const uId = user.id || user.local_id;
-
-      // Find today's record
       const record = todayAttendance.find(a => a.user_id === user.id || a.user_id === user.local_id);
 
-      // Calculate weekly stats & breakdown
       const userWeeklyRecords = allWeeklyAttendance.filter(a => a.user_id === user.id || a.user_id === user.local_id);
       let totalWeeklyMs = 0;
       const weeklyBreakdown = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
@@ -1549,18 +1572,13 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         const end = r.clock_out ? new Date(r.clock_out).getTime() : (r.date === today ? new Date().getTime() : new Date(r.clock_in).getTime());
         const diff = end - start;
         totalWeeklyMs += diff;
-
-        // Map to day
         const dayName = new Date(r.date).toLocaleDateString('en-US', { weekday: 'short' });
-        if (weeklyBreakdown[dayName] !== undefined) {
-          weeklyBreakdown[dayName] += Math.round(diff / 3600000 * 10) / 10; // Store as hours decimal
-        }
+        if (weeklyBreakdown[dayName] !== undefined) weeklyBreakdown[dayName] += Math.round(diff / 3600000 * 10) / 10;
       });
 
       const weeklyHrs = Math.floor(totalWeeklyMs / 3600000);
       const weeklyMins = Math.floor((totalWeeklyMs % 3600000) / 60000);
 
-      // Presence Check (Heartbeat < 2 mins)
       const lastSeen = UserPresence.get(user.id) || UserPresence.get(user.local_id) || 0;
       const isPresenceActive = (Date.now() - lastSeen) < 120000;
 
@@ -1574,84 +1592,42 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         if (record.clock_out) {
           status = 'Clocked Out';
         } else {
-          status = isPresenceActive ? 'Online' : 'Away';
+          status = isPresenceActive ? 'Online' : 'Offline'; // CHANGED: 'Away' -> 'Offline'
         }
-
         clockIn = record.clock_in;
         location = record.location_in;
-
         const start = new Date(record.clock_in).getTime();
         const end = record.clock_out ? new Date(record.clock_out).getTime() : new Date().getTime();
         const diffMs = end - start;
-        const hrs = Math.floor(diffMs / 3600000);
-        const mins = Math.floor((diffMs % 3600000) / 60000);
-        duration = `${hrs}h ${mins}m`;
-      } else {
-        // Not clocked in, but might be browsing (Online WITHOUT clock in)
-        if (isPresenceActive) status = 'Browsing';
+        duration = `${Math.floor(diffMs / 3600000)}h ${Math.floor((diffMs % 3600000) / 60000)}m`;
+      } else if (isPresenceActive) {
+        status = 'Browsing';
       }
 
       return {
-        id: uId,
-        name: user.name,
-        role: user.role,
-        status,
-        clockIn,
-        location,
-        duration,
-        weeklyHours: `${weeklyHrs}h ${weeklyMins}m`,
-        weeklyBreakdown,
-        userId: user.id
+        id: uId, name: user.name, role: user.role, status, clockIn, location, duration,
+        weeklyHours: `${weeklyHrs}h ${weeklyMins}m`, weeklyBreakdown, userId: user.id
       };
     });
 
-    // 4. Add Orphans
-    const todayOrphans = todayAttendance.filter(a => !mappedAttendanceIds.has(a.id));
-    todayOrphans.forEach(record => {
+    // Handle Orphans
+    todayAttendance.filter(a => !mappedAttendanceIds.has(a.id)).forEach(record => {
       const start = new Date(record.clock_in).getTime();
       const end = record.clock_out ? new Date(record.clock_out).getTime() : new Date().getTime();
       const diffMs = end - start;
-      const hrs = Math.floor(diffMs / 3600000);
-      const mins = Math.floor((diffMs % 3600000) / 60000);
-
       dashboardData.push({
-        id: record.user_id,
-        name: `Unknown User (${record.user_id.substring(0, 6)}...)`,
-        role: 'Guest',
+        id: record.user_id, name: `Unknown (${record.user_id.substring(0, 5)})`, role: 'Guest',
         status: record.clock_out ? 'Clocked Out' : 'Online',
-        clockIn: record.clock_in,
-        location: record.location_in,
-        duration: `${hrs}h ${mins}m`,
-        weeklyHours: 'N/A',
-        weeklyBreakdown: {},
-        userId: record.user_id
+        clockIn: record.clock_in, location: record.location_in,
+        duration: `${Math.floor(diffMs / 3600000)}h ${Math.floor((diffMs % 3600000) / 60000)}m`,
+        weeklyHours: 'N/A', weeklyBreakdown: {}, userId: record.user_id
       });
     });
 
     res.json({ success: true, data: dashboardData });
-
   } catch (error) {
-    console.error('❌ Dashboard Error:', error);
-    res.status(500).json({ success: false, error: `Dashboard Error: ${error.message}` });
+    res.status(500).json({ success: false, error: error.message });
   }
-});
-
-// PRESENCE: Heartbeat
-app.post('/api/v1/attendance/presence', (req, res) => {
-  const { userId } = req.body;
-  if (userId) {
-    UserPresence.set(userId, Date.now());
-  }
-  res.json({ success: true });
-});
-
-// PRESENCE: Logout
-app.post('/api/v1/attendance/logout', (req, res) => {
-  const { userId } = req.body;
-  if (userId) {
-    UserPresence.delete(userId);
-  }
-  res.json({ success: true });
 });
 
 // ADMIN: Export Attendance CSV

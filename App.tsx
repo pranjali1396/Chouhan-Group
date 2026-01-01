@@ -1040,7 +1040,7 @@ const App: React.FC = () => {
   const handleLogout = useCallback(async () => {
     if (currentUser) {
       try {
-        await api.attendanceLogout(currentUser.id);
+        await api.attendanceLogout(currentUser.id, true); // True means force clock-out on logout
       } catch (e) {
         console.warn('Logout presence notification failed', e);
       }

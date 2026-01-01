@@ -182,10 +182,10 @@ class ApiService {
     });
   }
 
-  async attendanceLogout(userId: string) {
+  async attendanceLogout(userId: string, clockOut: boolean = false) {
     return this.request<{ success: true }>('/attendance/logout', {
       method: 'POST',
-      body: JSON.stringify({ userId })
+      body: JSON.stringify({ userId, clockOut })
     });
   }
 
