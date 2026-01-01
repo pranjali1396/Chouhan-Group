@@ -1487,6 +1487,9 @@ app.listen(PORT, () => {
 
 // --- ATTENDANCE ENDPOINTS ---
 
+// In-memory presence tracking (UserID -> LastSeen timestamp)
+const UserPresence = new Map();
+
 // ADMIN: Get dashboard summary (All users status today)
 app.get('/api/v1/attendance/dashboard', async (req, res) => {
   const now = new Date();
@@ -1531,20 +1534,35 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
     const todayAttendance = allWeeklyAttendance.filter(a => a.date === today);
 
     const dashboardData = users.map(user => {
+      const uId = user.id || user.local_id;
+
       // Find today's record
       const record = todayAttendance.find(a => a.user_id === user.id || a.user_id === user.local_id);
 
-      // Calculate weekly stats
+      // Calculate weekly stats & breakdown
       const userWeeklyRecords = allWeeklyAttendance.filter(a => a.user_id === user.id || a.user_id === user.local_id);
       let totalWeeklyMs = 0;
+      const weeklyBreakdown = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+
       userWeeklyRecords.forEach(r => {
         const start = new Date(r.clock_in).getTime();
         const end = r.clock_out ? new Date(r.clock_out).getTime() : (r.date === today ? new Date().getTime() : new Date(r.clock_in).getTime());
-        totalWeeklyMs += (end - start);
+        const diff = end - start;
+        totalWeeklyMs += diff;
+
+        // Map to day
+        const dayName = new Date(r.date).toLocaleDateString('en-US', { weekday: 'short' });
+        if (weeklyBreakdown[dayName] !== undefined) {
+          weeklyBreakdown[dayName] += Math.round(diff / 3600000 * 10) / 10; // Store as hours decimal
+        }
       });
 
       const weeklyHrs = Math.floor(totalWeeklyMs / 3600000);
       const weeklyMins = Math.floor((totalWeeklyMs % 3600000) / 60000);
+
+      // Presence Check (Heartbeat < 2 mins)
+      const lastSeen = UserPresence.get(user.id) || UserPresence.get(user.local_id) || 0;
+      const isPresenceActive = (Date.now() - lastSeen) < 120000;
 
       let status = 'Offline';
       let clockIn = null;
@@ -1553,8 +1571,11 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
 
       if (record) {
         mappedAttendanceIds.add(record.id);
-        if (record.clock_out) status = 'Clocked Out';
-        else status = 'Online';
+        if (record.clock_out) {
+          status = 'Clocked Out';
+        } else {
+          status = isPresenceActive ? 'Online' : 'Away';
+        }
 
         clockIn = record.clock_in;
         location = record.location_in;
@@ -1565,10 +1586,13 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         const hrs = Math.floor(diffMs / 3600000);
         const mins = Math.floor((diffMs % 3600000) / 60000);
         duration = `${hrs}h ${mins}m`;
+      } else {
+        // Not clocked in, but might be browsing (Online WITHOUT clock in)
+        if (isPresenceActive) status = 'Browsing';
       }
 
       return {
-        id: user.id || user.local_id,
+        id: uId,
         name: user.name,
         role: user.role,
         status,
@@ -1576,11 +1600,12 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         location,
         duration,
         weeklyHours: `${weeklyHrs}h ${weeklyMins}m`,
+        weeklyBreakdown,
         userId: user.id
       };
     });
 
-    // 4. Add Orphans (Attendance records with no matching User ID)
+    // 4. Add Orphans
     const todayOrphans = todayAttendance.filter(a => !mappedAttendanceIds.has(a.id));
     todayOrphans.forEach(record => {
       const start = new Date(record.clock_in).getTime();
@@ -1598,6 +1623,7 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         location: record.location_in,
         duration: `${hrs}h ${mins}m`,
         weeklyHours: 'N/A',
+        weeklyBreakdown: {},
         userId: record.user_id
       });
     });
@@ -1608,6 +1634,24 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
     console.error('❌ Dashboard Error:', error);
     res.status(500).json({ success: false, error: `Dashboard Error: ${error.message}` });
   }
+});
+
+// PRESENCE: Heartbeat
+app.post('/api/v1/attendance/presence', (req, res) => {
+  const { userId } = req.body;
+  if (userId) {
+    UserPresence.set(userId, Date.now());
+  }
+  res.json({ success: true });
+});
+
+// PRESENCE: Logout
+app.post('/api/v1/attendance/logout', (req, res) => {
+  const { userId } = req.body;
+  if (userId) {
+    UserPresence.delete(userId);
+  }
+  res.json({ success: true });
 });
 
 // ADMIN: Export Attendance CSV

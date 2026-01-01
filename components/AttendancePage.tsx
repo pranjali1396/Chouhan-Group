@@ -230,45 +230,79 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
           {isAdmin ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left text-gray-500">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50/50">
                   <tr>
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">User</th>
                     <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Clock In</th>
-                    <th className="px-4 py-3">Duration</th>
-                    <th className="px-4 py-3 font-black text-indigo-600">Weekly</th>
+                    <th className="px-4 py-3">Today</th>
+                    <th className="px-4 py-3 font-black text-indigo-600">Weekly Data (Mon-Sun)</th>
                     <th className="px-4 py-3">Location</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-50">
                   {dashboardData.length > 0 ? (
                     dashboardData.map((user: any) => (
-                      <tr key={user.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium text-gray-900">{user.name}</td>
-                        <td className="px-4 py-3">{user.role}</td>
+                      <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${user.status === 'Online' ? 'bg-green-100 text-green-800' :
-                            user.status === 'Clocked Out' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800">{user.name}</span>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-tighter">{user.role}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${user.status === 'Online' ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' :
+                            user.status === 'Away' ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' :
+                              user.status === 'Clocked Out' ? 'bg-slate-100 text-slate-600 ring-1 ring-slate-200' :
+                                user.status === 'Browsing' ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200' :
+                                  'bg-rose-100 text-rose-700 ring-1 ring-rose-200'
                             }`}>
-                            <span className={`w-1.5 h-1.5 mr-1.5 rounded-full ${user.status === 'Online' ? 'bg-green-500' :
-                              user.status === 'Clocked Out' ? 'bg-gray-500' : 'bg-red-500'
+                            <span className={`w-1.5 h-1.5 mr-1.5 rounded-full animate-pulse ${user.status === 'Online' ? 'bg-emerald-500' :
+                              user.status === 'Away' ? 'bg-amber-500' :
+                                user.status === 'Clocked Out' ? 'bg-slate-400' :
+                                  user.status === 'Browsing' ? 'bg-indigo-500' :
+                                    'bg-rose-500'
                               }`}></span>
                             {user.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 w-32 whitespace-nowrap">
-                          {user.clockIn ? new Date(user.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-700">{user.duration}</span>
+                            <span className="text-[10px] text-slate-400">In: {user.clockIn ? new Date(user.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                          </div>
                         </td>
-                        <td className="px-4 py-3">{user.duration}</td>
-                        <td className="px-4 py-3 font-black text-indigo-600">{user.weeklyHours || '0h 0m'}</td>
-                        <td className="px-4 py-3 text-xs text-gray-400 truncate max-w-[150px]" title={user.location || ''}>
-                          {user.location || '-'}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                              <div key={day} className="flex flex-col items-center min-w-[32px]">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase">{day[0]}</span>
+                                <div className={`h-8 w-6 rounded-md flex items-end justify-center pb-1 ${user.weeklyBreakdown?.[day] > 0 ? 'bg-indigo-50' : 'bg-slate-50'}`}>
+                                  <div
+                                    className="w-4 bg-indigo-500 rounded-sm"
+                                    style={{ height: `${Math.min(100, (user.weeklyBreakdown?.[day] || 0) * 10)}%` }}
+                                    title={`${day}: ${user.weeklyBreakdown?.[day] || 0}h`}
+                                  ></div>
+                                </div>
+                              </div>
+                            ))}
+                            <div className="ml-2 pl-2 border-l border-slate-100 flex flex-col">
+                              <span className="text-[10px] font-black text-indigo-600">{user.weeklyHours}</span>
+                              <span className="text-[8px] text-slate-400 uppercase font-black">Total</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {user.location ? (
+                            <div className="flex items-center text-[10px] text-slate-400 italic max-w-[120px] truncate" title={user.location}>
+                              <MapPinIcon className="w-3 h-3 mr-1 flex-shrink-0" />
+                              {user.location}
+                            </div>
+                          ) : <span className="text-slate-300">-</span>}
                         </td>
                       </tr>
                     ))
                   ) : (
-                    <tr><td colSpan={6} className="px-4 py-4 text-center">No data available</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400 italic font-medium">No team data available for today.</td></tr>
                   )}
                 </tbody>
               </table>

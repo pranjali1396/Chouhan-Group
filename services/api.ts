@@ -174,6 +174,20 @@ class ApiService {
     });
   }
 
+  async attendancePresence(userId: string) {
+    return this.request<{ success: true }>('/attendance/presence', {
+      method: 'POST',
+      body: JSON.stringify({ userId })
+    });
+  }
+
+  async attendanceLogout(userId: string) {
+    return this.request<{ success: true }>('/attendance/logout', {
+      method: 'POST',
+      body: JSON.stringify({ userId })
+    });
+  }
+
   // Admin Dashboard
   async getAttendanceDashboard() {
     return this.request<{ success: true; data: any[] }>('/attendance/dashboard');

@@ -1037,10 +1037,30 @@ const App: React.FC = () => {
     setActiveView(isAdmin ? 'Dashboard' : 'Leads');
   }, []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    if (currentUser) {
+      try {
+        await api.attendanceLogout(currentUser.id);
+      } catch (e) {
+        console.warn('Logout presence notification failed', e);
+      }
+    }
     setCurrentUser(null);
     setActiveView('Dashboard');
-  }, []);
+  }, [currentUser]);
+
+  // Presence Heartbeat
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const sendHeartbeat = () => {
+      api.attendancePresence(currentUser.id).catch(() => { });
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 60000); // 1 minute
+    return () => clearInterval(interval);
+  }, [currentUser]);
 
   const handleSearchResultClick = useCallback((lead: Lead) => {
     setTargetLeadId(lead.id);
