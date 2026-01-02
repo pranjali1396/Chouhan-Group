@@ -7,13 +7,14 @@ interface AttendanceCardProps {
     status: AttendanceStatus;
     clockInTime: Date | null;
     clockOutTime?: Date | null;
+    hoursToday?: string;
     location: string | null;
     error: string | null;
     onClockIn: () => void;
     onClockOut: () => void;
 }
 
-const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, clockOutTime, location, error, onClockIn, onClockOut }) => {
+const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, clockOutTime, hoursToday, location, error, onClockIn, onClockOut }) => {
 
     const getStatusMessage = () => {
         switch (status) {
@@ -53,7 +54,15 @@ const AttendanceCard: React.FC<AttendanceCardProps> = ({ status, clockInTime, cl
 
     return (
         <div>
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Attendance</h3>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Clock In/Out</h3>
+                {hoursToday && (
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Total Hours</span>
+                        <span className="text-base font-black text-indigo-600 leading-none">{hoursToday}</span>
+                    </div>
+                )}
+            </div>
             <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                     {getStatusMessage()}

@@ -219,11 +219,11 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
           trend={status === 'ClockedIn' ? "On time" : ""}
         />
         <MetricCard
-          title={isAdmin ? "Currently Online" : "Hours Today"}
-          value={isAdmin ? onlineCount.toString() : hoursToday}
-          icon={isAdmin ? <BellIcon className="w-6 h-6 text-white" /> : <ClockIcon className="w-6 h-6 text-white" />}
+          title="Hours Today"
+          value={hoursToday}
+          icon={<ClockIcon className="w-6 h-6 text-white" />}
           colorClass="bg-amber-600"
-          trend={isAdmin ? "Active Now" : "Live tracking"}
+          trend={isAdmin ? `${onlineCount} Team Online` : "Live tracking"}
         />
         <MetricCard
           title={isAdmin ? "On Leave" : "This Month"}
@@ -240,6 +240,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
             status={status}
             clockInTime={clockInTime}
             clockOutTime={clockOutTime}
+            hoursToday={hoursToday}
             location={location}
             error={error}
             onClockIn={handleClockIn}
