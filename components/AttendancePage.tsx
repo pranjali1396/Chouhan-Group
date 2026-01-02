@@ -106,74 +106,6 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
     };
   }, [currentUser.id, isAdmin]);
 
-  const handleClockIn = () => {
-    setStatus('ClockingIn');
-    setLocation('Fetching location...');
-    setError(null);
-
-    if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser');
-      setStatus('Error');
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        const locString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-
-        try {
-          await api.clockIn(currentUser.id, locString);
-          setLocation(locString);
-          setClockInTime(new Date());
-          setStatus('ClockedIn');
-          // Refresh dashboard if admin
-          if (isAdmin) {
-            const res = await api.getAttendanceDashboard();
-            if (res.success) setDashboardData(res.data);
-          }
-        } catch (err: any) {
-          console.error(err);
-          setError(err.message || 'Failed to clock in');
-          setStatus('Error');
-        }
-      },
-      (err) => {
-        console.error(err);
-        setError('Could not get location. Permission denied.');
-        setLocation(null);
-        setStatus('Error');
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  };
-
-  const handleClockOut = async () => {
-    setStatus('ClockingOut');
-    setError(null);
-
-    try {
-      const res = await api.clockOut(currentUser.id);
-      setStatus('ClockedOut');
-      setClockOutTime(new Date());
-
-      // Refresh status and history to get final calculated hours and logs
-      const statusRes = await api.getAttendanceStatus(currentUser.id);
-      if (statusRes.success) {
-        if (statusRes.summary) setHoursToday(formatDuration(statusRes.summary.hoursToday));
-        if (statusRes.history) setHistory(statusRes.history);
-      }
-      // Refresh dashboard if admin
-      if (isAdmin) {
-        const res = await api.getAttendanceDashboard();
-        if (res.success) setDashboardData(res.data);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to clock out');
-      setStatus('ClockedIn'); // Revert status if failed
-    }
-  };
 
   const handleExport = () => {
     const month = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -243,8 +175,6 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
             hoursToday={hoursToday}
             location={location}
             error={error}
-            onClockIn={handleClockIn}
-            onClockOut={handleClockOut}
           />
         </div>
 

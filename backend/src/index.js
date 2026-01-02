@@ -1490,12 +1490,55 @@ app.listen(PORT, () => {
 // In-memory presence tracking (UserID -> LastSeen timestamp)
 const UserPresence = new Map();
 
-// PRESENCE: Heartbeat
-app.post('/api/v1/attendance/presence', (req, res) => {
+// PRESENCE: Heartbeat (Automates Clock-In/Out based on Login/Presence)
+app.post('/api/v1/attendance/presence', async (req, res) => {
   const { userId } = req.body;
-  if (userId) {
-    UserPresence.set(userId, Date.now());
+  if (!userId) return res.json({ success: true });
+
+  const now = Date.now();
+  UserPresence.set(userId, now);
+
+  if (supabase) {
+    try {
+      // 1. Resolve User ID
+      let dbUserId = userId;
+      if (userId.startsWith('user-') || userId.startsWith('admin-')) {
+        const { data: user } = await supabase.from('users').select('id').eq('local_id', userId).maybeSingle();
+        if (user) dbUserId = user.id;
+        else return res.json({ success: true }); // Can't track unknown user
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const timestamp = new Date().toISOString();
+
+      // 2. Check if record exists for today
+      const { data: record } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('user_id', dbUserId)
+        .eq('date', today)
+        .maybeSingle();
+
+      if (!record) {
+        // First presence of the day -> AUTO CLOCK IN
+        await supabase.from('attendance').insert([{
+          user_id: dbUserId,
+          date: today,
+          clock_in: timestamp,
+          location_in: 'Automatic (Login)'
+        }]);
+        console.log(`✨ Auto Clock-In for ${userId}`);
+      } else {
+        // Already clocked in. We update NOTHING here. 
+        // We track "Online" duration in the dashboard by (Now - ClockIn) 
+        // if the user is currently in UserPresence map.
+        // If they logout, we finalize the record.
+      }
+    } catch (err) {
+      console.error('❌ Auto-Attendance error:', err);
+    }
   }
+
   res.json({ success: true });
 });
 
