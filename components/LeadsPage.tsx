@@ -702,16 +702,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         // For Admin: Show all leads with "New Lead" status
         // For Salesperson: Show only their assigned leads with "New Lead" status  
         if (activeTab === 'new') {
-            filtered = filtered.filter(l => {
-                const isNewLead = l.status === LeadStatus.New;
-                if (isAdmin) {
-                    // Admin sees all new leads
-                    return isNewLead;
-                } else {
-                    // Salesperson sees only their assigned new leads
-                    return isNewLead && l.assignedSalespersonId === currentUser.id;
-                }
-            });
+            filtered = filtered.filter(l => l.status === LeadStatus.New);
         }
 
         // 3. Local Search
