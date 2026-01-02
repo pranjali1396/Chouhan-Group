@@ -182,6 +182,13 @@ class ApiService {
     });
   }
 
+  async attendanceAway(userId: string) {
+    return this.request<{ success: true }>('/attendance/away', {
+      method: 'POST',
+      body: JSON.stringify({ userId })
+    });
+  }
+
   async attendanceLogout(userId: string, clockOut: boolean = false) {
     return this.request<{ success: true }>('/attendance/logout', {
       method: 'POST',

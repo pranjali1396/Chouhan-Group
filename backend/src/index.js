@@ -1487,7 +1487,7 @@ app.listen(PORT, () => {
 
 // --- ATTENDANCE ENDPOINTS ---
 
-// In-memory presence tracking (UserID -> LastSeen timestamp)
+// In-memory presence tracking (UserID -> { lastSeen: timestamp, state: 'online'|'away' })
 const UserPresence = new Map();
 
 // PRESENCE: Heartbeat (Automates Clock-In/Out based on Login/Presence)
@@ -1496,17 +1496,28 @@ app.post('/api/v1/attendance/presence', async (req, res) => {
   if (!userId) return res.json({ success: true });
 
   const now = Date.now();
-  UserPresence.set(userId, now);
+
+  // 1. Store presence for the provided ID
+  UserPresence.set(userId, { lastSeen: now, state: 'online' });
 
   if (supabase) {
     try {
-      // 1. Resolve User ID
+      // 2. Resolve User ID to ensure we also store by DB UUID
       let dbUserId = userId;
-      if (userId.startsWith('user-') || userId.startsWith('admin-')) {
-        const { data: user } = await supabase.from('users').select('id').eq('local_id', userId).maybeSingle();
-        if (user) dbUserId = user.id;
-        else return res.json({ success: true }); // Can't track unknown user
+      // Proactive resolution: Try to resolve if it's not a standard UUID (v4 looks like 8-4-4-4-12)
+      // Standard UUID is 36 chars. If it's anything else OR if it's our deterministic ID, try resolving.
+      const isProbableLocalId = userId.startsWith('user-') || userId.startsWith('admin-') || userId.length < 36 || !userId.includes('-');
+
+      const { data: user } = await supabase.from('users').select('id').eq('local_id', userId).maybeSingle();
+      if (user) {
+        dbUserId = user.id;
+        // Store for DB ID as well if different
+        if (dbUserId !== userId) {
+          UserPresence.set(dbUserId, { lastSeen: now, state: 'online' });
+          console.log(`[Presence] Mapped ${userId} -> ${dbUserId}`);
+        }
       }
+      console.log(`[Presence] Heartbeat for ${userId} (dbUserId: ${dbUserId}) at ${new Date(now).toISOString()}`);
 
       const today = new Date().toISOString().split('T')[0];
       const timestamp = new Date().toISOString();
@@ -1528,17 +1539,22 @@ app.post('/api/v1/attendance/presence', async (req, res) => {
           location_in: 'Automatic (Login)'
         }]);
         console.log(`✨ Auto Clock-In for ${userId}`);
-      } else {
-        // Already clocked in. We update NOTHING here. 
-        // We track "Online" duration in the dashboard by (Now - ClockIn) 
-        // if the user is currently in UserPresence map.
-        // If they logout, we finalize the record.
       }
     } catch (err) {
       console.error('❌ Auto-Attendance error:', err);
     }
   }
 
+  res.json({ success: true });
+});
+
+// PRESENCE: Away (Tab Close)
+app.post('/api/v1/attendance/away', (req, res) => {
+  const { userId } = req.body;
+  if (userId) {
+    UserPresence.set(userId, { lastSeen: Date.now(), state: 'away' });
+    console.log(`🌙 User ${userId} marked as Away (Tab Closed)`);
+  }
   res.json({ success: true });
 });
 
@@ -1631,8 +1647,10 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
       const weeklyHrs = Math.floor(totalWeeklyMs / 3600000);
       const weeklyMins = Math.floor((totalWeeklyMs % 3600000) / 60000);
 
-      const lastSeen = UserPresence.get(user.id) || UserPresence.get(user.local_id) || 0;
-      const isPresenceActive = (Date.now() - lastSeen) < 180000; // Increased to 3 mins
+      const presenceData = UserPresence.get(user.id) || UserPresence.get(user.local_id);
+      const lastSeenTime = presenceData?.lastSeen || 0;
+      const isPresenceActive = (Date.now() - lastSeenTime) < 180000; // 3 mins for 'Online'
+      const isAway = presenceData?.state === 'away' && (Date.now() - lastSeenTime) < 600000; // 10 mins 'Away' buffer
 
       let status = 'Offline';
       let clockIn = null;
@@ -1643,8 +1661,12 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         mappedAttendanceIds.add(record.id);
         if (record.clock_out) {
           status = 'Clocked Out';
+        } else if (isPresenceActive) {
+          status = 'Online';
+        } else if (isAway) {
+          status = 'Away';
         } else {
-          status = isPresenceActive ? 'Online' : 'Offline'; // CHANGED: 'Away' -> 'Offline'
+          status = 'Offline';
         }
         clockIn = record.clock_in;
         location = record.location_in;
@@ -1652,8 +1674,9 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         const end = record.clock_out ? new Date(record.clock_out).getTime() : new Date().getTime();
         const diffMs = end - start;
         duration = `${Math.floor(diffMs / 3600000)}h ${Math.floor((diffMs % 3600000) / 60000)}m`;
-      } else if (isPresenceActive) {
-        status = 'Browsing';
+      } else {
+        if (isPresenceActive) status = 'Browsing';
+        else if (isAway) status = 'Away';
       }
 
       return {
@@ -1842,33 +1865,43 @@ app.get('/api/v1/attendance/:userId', async (req, res) => {
   try {
     if (!supabase) {
       // In-memory fallback (mock)
+      const presenceData = UserPresence.get(userId);
+      const lastSeenTime = presenceData?.lastSeen || 0;
+      let pStatus = 'Offline';
+      if ((Date.now() - lastSeenTime) < 180000) pStatus = 'Online';
+      else if (presenceData?.state === 'away' && (Date.now() - lastSeenTime) < 600000) pStatus = 'Away';
+
       return res.json({
         success: true,
-        attendance: { status: 'NotClockedIn', clockInTime: null },
+        attendance: { status: 'NotClockedIn', clockInTime: null, presenceStatus: pStatus },
         summary: { hoursToday: 0, daysThisMonth: 0 }
       });
     }
 
     // 1. Resolve user ID if local ID
     let dbUserId = userId;
-    if (userId.startsWith('user-') || userId.startsWith('admin-')) {
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('local_id', userId)
-        .maybeSingle();
+    // Proactive resolution: Try to resolve if it's not a standard UUID
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('local_id', userId)
+      .maybeSingle();
 
-      if (user) {
-        dbUserId = user.id;
-      } else {
-        // Legacy ID not found in Sync? Assume checking status for unsynced user -> Not Clocked In
-        // This avoids querying a UUID column with a Text ID which causes 500
-        return res.json({
-          success: true,
-          attendance: { status: 'NotClockedIn', clockInTime: null },
-          summary: { hoursToday: 0, daysThisMonth: 0 }
-        });
-      }
+    if (user) {
+      dbUserId = user.id;
+    } else if (userId.startsWith('user-') || userId.startsWith('admin-') || userId.length < 32) {
+      // Legacy fallback for known non-UUID formats that aren't in the database yet
+      const presenceData = UserPresence.get(userId);
+      const lastSeenTime = presenceData?.lastSeen || 0;
+      let pStatus = 'Offline';
+      if ((Date.now() - lastSeenTime) < 180000) pStatus = 'Online';
+      else if (presenceData?.state === 'away' && (Date.now() - lastSeenTime) < 600000) pStatus = 'Away';
+
+      return res.json({
+        success: true,
+        attendance: { status: 'NotClockedIn', clockInTime: null, presenceStatus: pStatus },
+        summary: { hoursToday: 0, daysThisMonth: 0 }
+      });
     }
 
     // 2. Fetch record
@@ -1924,6 +1957,15 @@ app.get('/api/v1/attendance/:userId', async (req, res) => {
       hoursToday = end - start;
     }
 
+    // 6. Check Presence (Real-time online/away)
+    const presenceData = UserPresence.get(userId) || UserPresence.get(dbUserId);
+    const lastSeenTime = presenceData?.lastSeen || 0;
+    let presenceStatus = 'Offline';
+    if ((Date.now() - lastSeenTime) < 180000) presenceStatus = 'Online';
+    else if (presenceData?.state === 'away' && (Date.now() - lastSeenTime) < 600000) presenceStatus = 'Away';
+
+    console.log(`[StatusCheck] userId: ${userId}, dbUserId: ${dbUserId}, presence: ${presenceStatus}, lastSeen: ${lastSeenTime}, mapKeys: ${Array.from(UserPresence.keys()).join(', ')}`);
+
     return res.json({
       success: true,
       attendance: {
@@ -1931,7 +1973,8 @@ app.get('/api/v1/attendance/:userId', async (req, res) => {
         status,
         clockInTime,
         clockOutTime,
-        location
+        location,
+        presenceStatus // This is for the Header dot
       },
       summary: {
         hoursToday,

@@ -1057,13 +1057,13 @@ const App: React.FC = () => {
       api.attendancePresence(currentUser.id).catch(() => { });
     };
 
-    const notifyOffline = () => {
+    const handleAway = () => {
       // Use standard fetch with 'keepalive' for reliability during tab close
       const apiBaseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5000'
-        : 'https://chouhan-crm-backend-staging.onrender.com';
+        ? 'http://localhost:5000/api/v1'
+        : 'https://chouhan-crm-backend-staging.onrender.com/api/v1';
 
-      fetch(`${apiBaseUrl}/api/v1/attendance/logout`, {
+      fetch(`${apiBaseUrl}/attendance/away`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser.id }),
@@ -1074,6 +1074,36 @@ const App: React.FC = () => {
     sendHeartbeat();
     const interval = setInterval(sendHeartbeat, 60000); // 1 minute
 
+    window.addEventListener('beforeunload', handleAway);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleAway);
+    };
+  }, [currentUser]);
+
+  const [userStatus, setUserStatus] = useState<'Online' | 'Away' | 'Offline'>('Offline');
+
+  // Poll personal status globally for Header indicator
+  useEffect(() => {
+    if (!currentUser) {
+      setUserStatus('Offline');
+      return;
+    }
+
+    const fetchStatus = async () => {
+      try {
+        const res = await api.getAttendanceStatus(currentUser.id);
+        if (res.success && res.attendance) {
+          setUserStatus((res.attendance as any).presenceStatus || 'Offline');
+        }
+      } catch (e) {
+        console.warn('Failed to fetch personal status for header', e);
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 30000); // Check every 30s
     return () => clearInterval(interval);
   }, [currentUser]);
 
@@ -1322,6 +1352,7 @@ const App: React.FC = () => {
           leads={visibleLeads}
           users={users}
           currentUser={currentUser}
+          userStatus={userStatus}
           onLogout={handleLogout}
           onRefresh={loadData}
           onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)}

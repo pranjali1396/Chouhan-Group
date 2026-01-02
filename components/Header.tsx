@@ -12,6 +12,7 @@ interface HeaderProps {
   leads: Lead[];
   users: User[];
   currentUser: User;
+  userStatus?: 'Online' | 'Away' | 'Offline';
   onLogout: () => void;
   onRefresh: () => void;
   onToggleSidebar: () => void;
@@ -60,103 +61,51 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      // On first load, fetch all notifications (don't use lastChecked)
       if (!hasLoadedInitialRef.current) {
-        console.log('🔄 First load - fetching all notifications for:', currentUser.id, 'role:', currentUser.role);
-        const allNotifications = await api.getNotifications(
-          currentUser.id,
-          currentUser.role
-        );
-        console.log('📬 All notifications (first load):', allNotifications.length);
-        console.log('📬 Notification details:', JSON.stringify(allNotifications, null, 2));
+        const allNotifications = await api.getNotifications(currentUser.id, currentUser.role);
         if (allNotifications.length > 0) {
-          // Filter out read notifications - only show unread ones
           const unreadNotifications = allNotifications.filter(n => !n.isRead);
           setNotifications(unreadNotifications.slice(0, 20));
-        } else {
-          console.log('⚠️ No notifications received - checking debug endpoint...');
-          // Try debug endpoint to see what's in backend
-          try {
-            const apiBaseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-              ? 'http://localhost:5000'
-              : 'https://chouhan-crm-backend-staging.onrender.com';
-            const debugResponse = await fetch(`${apiBaseUrl}/api/v1/notifications/debug`);
-            const debugData = await debugResponse.json();
-            console.log('🐛 Debug - All notifications in backend:', debugData);
-          } catch (e) {
-            console.error('Failed to fetch debug endpoint:', e);
-          }
         }
         hasLoadedInitialRef.current = true;
         lastCheckedRef.current = new Date().toISOString();
         return;
       }
 
-      // Subsequent fetches - only get new notifications
-      console.log('🔔 Fetching new notifications for user:', currentUser.id, 'role:', currentUser.role, 'lastChecked:', lastCheckedRef.current);
-      const newNotifications = await api.getNotifications(
-        currentUser.id,
-        currentUser.role,
-        lastCheckedRef.current
-      );
-
-      console.log('📬 Received new notifications:', newNotifications.length, newNotifications);
-
+      const newNotifications = await api.getNotifications(currentUser.id, currentUser.role, lastCheckedRef.current);
       if (newNotifications.length > 0) {
         setNotifications(prev => {
-          // Filter out notifications that are being removed or are already read
-          const filtered = prev.filter(n => {
-            // Check if notification is in removingIds by using a ref-like approach
-            // Since we can't access state directly, we'll filter read notifications
-            // and rely on the removingIds state for the animation
-            return !n.isRead;
-          });
+          const filtered = prev.filter(n => !n.isRead);
           const combined = [...newNotifications, ...filtered];
-          // Remove duplicates and sort by date
-          const unique = Array.from(
-            new Map(combined.map(n => [n.id, n])).values()
-          ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          console.log('📋 Total notifications after merge:', unique.length);
-          return unique.slice(0, 20); // Keep last 20 notifications
+          const unique = Array.from(new Map(combined.map(n => [n.id, n])).values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          return unique.slice(0, 20);
         });
-        // Update lastChecked after processing new notifications
         lastCheckedRef.current = new Date().toISOString();
       }
     } catch (error) {
       console.error('❌ Failed to fetch notifications:', error);
-      console.error('Error details:', error.message, error.stack);
     }
   };
 
-  // Poll for notifications every 5 seconds
   useEffect(() => {
     if (!currentUser) return;
-
-    // Reset initial load flag when user changes
     hasLoadedInitialRef.current = false;
     lastCheckedRef.current = new Date().toISOString();
-
     fetchNotifications();
     const intervalId = setInterval(fetchNotifications, 5000);
     return () => clearInterval(intervalId);
   }, [currentUser]);
 
-  // Update unread count (excluding notifications being removed)
   useEffect(() => {
     const unread = notifications.filter(n => !n.isRead && !removingIds.has(n.id)).length;
     setUnreadCount(unread);
   }, [notifications, removingIds]);
 
   const handleNotificationClick = async (notification: Notification) => {
-    // Mark as read and remove from list
     if (!notification.isRead) {
       try {
         await api.markNotificationRead(notification.id);
-
-        // Add to removing set for animation
         setRemovingIds(prev => new Set(prev).add(notification.id));
-
-        // Remove after animation completes
         setTimeout(() => {
           setNotifications(prev => prev.filter(n => n.id !== notification.id));
           setRemovingIds(prev => {
@@ -164,12 +113,11 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
             next.delete(notification.id);
             return next;
           });
-        }, 300); // Match animation duration
+        }, 300);
       } catch (err) {
         console.error('Error marking notification as read:', err);
       }
     } else {
-      // If already read, just remove it immediately
       setRemovingIds(prev => new Set(prev).add(notification.id));
       setTimeout(() => {
         setNotifications(prev => prev.filter(n => n.id !== notification.id));
@@ -181,23 +129,17 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
       }, 300);
     }
 
-    // Navigate to leads page and open the lead
     if (notification.leadId) {
       onNavigate('Leads');
-      setTimeout(() => {
-        onResultClick(notification.leadId!);
-      }, 100);
+      setTimeout(() => onResultClick(notification.leadId!), 100);
     } else {
       onNavigate('Leads');
     }
-
     setIsOpen(false);
   };
 
   const markAllAsRead = async () => {
     const unreadNotifications = notifications.filter(n => !n.isRead);
-
-    // Mark all as read in backend
     for (const notif of unreadNotifications) {
       try {
         await api.markNotificationRead(notif.id);
@@ -205,12 +147,8 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
         console.error('Error marking notification as read:', err);
       }
     }
-
-    // Add all to removing set for animation
     const unreadIds = new Set(unreadNotifications.map(n => n.id));
     setRemovingIds(prev => new Set([...prev, ...unreadIds]));
-
-    // Remove all after animation completes
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => !unreadIds.has(n.id)));
       setRemovingIds(prev => {
@@ -218,23 +156,15 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
         unreadIds.forEach(id => next.delete(id));
         return next;
       });
-    }, 300); // Match animation duration
+    }, 300);
   };
 
   const handleDeleteNotification = async (e: React.MouseEvent, notificationId: string) => {
-    e.stopPropagation(); // Prevent triggering the notification click
-
-    if (!window.confirm('Are you sure you want to delete this notification?')) {
-      return;
-    }
-
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this notification?')) return;
     try {
       await api.deleteNotification(notificationId);
-
-      // Add to removing set for animation
       setRemovingIds(prev => new Set(prev).add(notificationId));
-
-      // Remove after animation completes
       setTimeout(() => {
         setNotifications(prev => prev.filter(n => n.id !== notificationId));
         setRemovingIds(prev => {
@@ -245,7 +175,6 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
       }, 300);
     } catch (err) {
       console.error('Error deleting notification:', err);
-      alert('Failed to delete notification. Please try again.');
     }
   };
 
@@ -316,19 +245,9 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
                             }`}>
                             {notification.message || (notification.type === 'new_lead' ? `New lead from ${notification.leadData?.customerName || 'Unknown'}` : 'Lead Assigned')}
                           </p>
-                          {notification.type === 'lead_assigned' && (
-                            <p className="text-sm text-gray-600 mt-0.5">
-                              {notification.leadData?.customerName || 'Unknown'}
-                            </p>
-                          )}
                           {notification.leadData?.mobile && (
                             <p className="text-xs text-gray-500 mt-1">
                               📱 {notification.leadData.mobile}
-                            </p>
-                          )}
-                          {notification.leadData?.interestedProject && (
-                            <p className="text-xs text-gray-500">
-                              🏢 {notification.leadData.interestedProject}
                             </p>
                           )}
                           <p className="text-xs text-gray-400 mt-2">
@@ -362,9 +281,16 @@ const NotificationsDropdown: React.FC<{ currentUser: User; onNavigate: (view: st
   );
 };
 
-const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (view: string) => void }> = ({ user, onLogout, onNavigate }) => {
+const UserMenu: React.FC<{ user: User, status?: string, onLogout: () => void, onNavigate: (view: string) => void }> = ({ user, status = 'Offline', onLogout, onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Status indicators
+  const statusColors = {
+    'Online': 'bg-emerald-500',
+    'Away': 'bg-amber-500',
+    'Offline': 'bg-rose-500'
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -382,7 +308,6 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (view: 
   };
 
   const handleProfileClick = () => {
-    // For now, map Profile to Settings for admin or show simple alert/placeholder
     if (user.role === 'Admin') {
       onNavigate('Settings');
     } else {
@@ -393,15 +318,18 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (view: 
 
   return (
     <div className="relative" ref={menuRef}>
-      <button onClick={() => setIsOpen(!isOpen)} className="flex items-center space-x-1.5 p-1 rounded-full hover:bg-base-300 transition-colors">
-        <img
-          src={user.avatarUrl}
-          alt={`${user.name}'s Avatar`}
-          className="w-7 h-7 rounded-full border border-gray-200"
-        />
+      <button onClick={() => setIsOpen(!isOpen)} className="flex items-center space-x-1.5 p-1 rounded-full hover:bg-base-300 transition-colors focus:outline-none">
+        <div className="relative">
+          <img
+            src={user.avatarUrl}
+            alt={`${user.name}'s Avatar`}
+            className="w-7 h-7 rounded-full border border-gray-200"
+          />
+          <span className={`absolute bottom-0 right-0 block h-2 w-2 rounded-full border-2 border-white ${statusColors[status as keyof typeof statusColors] || 'bg-gray-400'}`}></span>
+        </div>
         <div className="hidden md:block text-left">
           <p className="text-xs font-semibold text-base-content">{user.name}</p>
-          <p className="text-[10px] text-muted-content">{user.role}</p>
+          <p className="text-[10px] text-muted-content font-bold uppercase tracking-tighter opacity-70">{status}</p>
         </div>
         <svg className={`hidden md:block w-3.5 h-3.5 text-muted-content transition-transform ${isOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -411,10 +339,16 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (view: 
         <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50 animate-in fade-in zoom-in duration-200 origin-top-right">
           <div className="p-2">
             <div className="flex items-center p-3 mb-2 bg-base-200 rounded-xl">
-              <img src={user.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border border-white shadow-sm" />
+              <div className="relative">
+                <img src={user.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border border-white shadow-sm" />
+                <span className={`absolute bottom-0.5 right-0.5 block h-2.5 w-2.5 rounded-full border-2 border-white ${statusColors[status as keyof typeof statusColors] || 'bg-gray-400'}`}></span>
+              </div>
               <div className="ml-3 overflow-hidden">
-                <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
-                <p className="text-xs text-slate-500 truncate">{user.role}</p>
+                <p className="text-sm font-black text-slate-800 truncate">{user.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full ${statusColors[status as keyof typeof statusColors] || 'bg-gray-400'}`}></div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">{status}</p>
+                </div>
               </div>
             </div>
             <button onClick={handleProfileClick} className="flex items-center w-full text-left px-3 py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
@@ -439,21 +373,16 @@ const UserMenu: React.FC<{ user: User, onLogout: () => void, onNavigate: (view: 
   );
 };
 
-const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, searchResults, leads, users, currentUser, onLogout, onRefresh, onToggleSidebar, onResultClick, onNavigate }) => {
+const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, searchResults, leads, users, currentUser, userStatus, onLogout, onRefresh, onToggleSidebar, onResultClick, onNavigate }) => {
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
 
-  // Debounce the search input
   useEffect(() => {
     const handler = setTimeout(() => {
       onSearchChange(localSearchTerm);
     }, 300);
-
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [localSearchTerm, onSearchChange]);
 
-  // Update local state if parent state changes externally (e.g., clear search)
   useEffect(() => {
     if (searchTerm !== localSearchTerm) {
       setLocalSearchTerm(searchTerm);
@@ -505,7 +434,7 @@ const Header: React.FC<HeaderProps> = ({ searchTerm, onSearchChange, searchResul
             }
           }}
         />
-        <UserMenu user={currentUser} onLogout={onLogout} onNavigate={onNavigate} />
+        <UserMenu user={currentUser} status={userStatus} onLogout={onLogout} onNavigate={onNavigate} />
       </div>
     </header>
   );
