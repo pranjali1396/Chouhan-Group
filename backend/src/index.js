@@ -1490,6 +1490,15 @@ app.listen(PORT, () => {
 // In-memory presence tracking (UserID -> LastSeen timestamp)
 const UserPresence = new Map();
 
+// PRESENCE: Heartbeat
+app.post('/api/v1/attendance/presence', (req, res) => {
+  const { userId } = req.body;
+  if (userId) {
+    UserPresence.set(userId, Date.now());
+  }
+  res.json({ success: true });
+});
+
 // PRESENCE: Logout
 app.post('/api/v1/attendance/logout', async (req, res) => {
   const { userId, clockOut } = req.body;
@@ -1580,7 +1589,7 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
       const weeklyMins = Math.floor((totalWeeklyMs % 3600000) / 60000);
 
       const lastSeen = UserPresence.get(user.id) || UserPresence.get(user.local_id) || 0;
-      const isPresenceActive = (Date.now() - lastSeen) < 120000;
+      const isPresenceActive = (Date.now() - lastSeen) < 180000; // Increased to 3 mins
 
       let status = 'Offline';
       let clockIn = null;

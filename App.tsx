@@ -1049,7 +1049,7 @@ const App: React.FC = () => {
     setActiveView('Dashboard');
   }, [currentUser]);
 
-  // Presence Heartbeat & Fast Offline on Exit
+  // Presence Heartbeat
   useEffect(() => {
     if (!currentUser) return;
 
@@ -1074,12 +1074,7 @@ const App: React.FC = () => {
     sendHeartbeat();
     const interval = setInterval(sendHeartbeat, 60000); // 1 minute
 
-    window.addEventListener('beforeunload', notifyOffline);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('beforeunload', notifyOffline);
-    };
+    return () => clearInterval(interval);
   }, [currentUser]);
 
   const handleSearchResultClick = useCallback((lead: Lead) => {
