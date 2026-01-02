@@ -12,6 +12,7 @@ interface LeadsTableProps {
     onSelectLead: (leadId: string) => void;
     onSelectAll: (event: React.ChangeEvent<HTMLInputElement>) => void;
     allVisibleLeadsSelected: boolean;
+    onDeleteLead?: (leadId: string) => void;
 }
 
 export const StatusBadge: React.FC<{
@@ -64,9 +65,10 @@ interface LeadRowProps {
     index: number;
     onSelect: (id: string) => void;
     onOpenModal: (lead: Lead) => void;
+    onDeleteLead?: (leadId: string) => void;
 }
 
-const MobileLeadCard: React.FC<LeadRowProps> = memo(({ lead, salespersonName, isSelected, onSelect, onOpenModal }) => (
+const MobileLeadCard: React.FC<LeadRowProps> = memo(({ lead, salespersonName, isSelected, onSelect, onOpenModal, onDeleteLead }) => (
     <div
         onClick={() => onOpenModal(lead)}
         className={`p-3 rounded-2xl border-2 transition-all duration-300 shadow-sm relative overflow-hidden active:scale-[0.98] ${isSelected ? 'bg-indigo-50/50 border-primary/30 ring-4 ring-primary/5' : 'bg-white border-slate-100'}`}
@@ -144,7 +146,7 @@ const MobileLeadCard: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
     </div>
 ));
 
-const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, isSelected, index, onSelect, onOpenModal }) => (
+const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, isSelected, index, onSelect, onOpenModal, onDeleteLead }) => (
     <tr
         onClick={() => onOpenModal(lead)}
         className={`group transition-all duration-200 border-b border-slate-100 last:border-none cursor-pointer ${isSelected ? 'bg-primary/5 shadow-sm' : 'hover:bg-slate-50'}`}
@@ -202,17 +204,31 @@ const DesktopLeadRow: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
             </span>
         </td>
         <td className="px-3 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-            <button
-                onClick={() => onOpenModal(lead)}
-                className="bg-white border border-slate-200 text-primary hover:bg-primary hover:text-white hover:border-primary font-black text-[10px] px-3 py-1.5 rounded-lg transition-all duration-200 shadow-sm uppercase tracking-tighter active:scale-95"
-            >
-                Edit
-            </button>
+            <div className="flex items-center justify-center gap-1">
+                <button
+                    onClick={() => onOpenModal(lead)}
+                    className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-black text-[10px] px-2.5 py-1.5 rounded-lg transition-all duration-200 shadow-sm uppercase tracking-tighter active:scale-95"
+                >
+                    Edit
+                </button>
+                {onDeleteLead && (
+                    <button
+                        onClick={() => {
+                            if (window.confirm('Delete this lead?')) {
+                                onDeleteLead(lead.id);
+                            }
+                        }}
+                        className="bg-white border border-red-200 text-red-600 hover:bg-red-50 font-black text-[10px] px-2.5 py-1.5 rounded-lg transition-all duration-200 shadow-sm uppercase tracking-tighter active:scale-95 ml-1"
+                    >
+                        Delete
+                    </button>
+                )}
+            </div>
         </td>
     </tr>
 ));
 
-const LeadsTable: React.FC<LeadsTableProps> = ({ leads, users, onOpenModal, selectedLeadIds, onSelectLead, onSelectAll, allVisibleLeadsSelected }) => {
+const LeadsTable: React.FC<LeadsTableProps> = ({ leads, users, onOpenModal, selectedLeadIds, onSelectLead, onSelectAll, allVisibleLeadsSelected, onDeleteLead }) => {
     const userMap = new Map<string, string>(users.map(user => [user.id, user.name]));
 
     // Helper function to get salesperson name with better error handling

@@ -473,7 +473,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-end md:items-center" onClick={onClose}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-end md:items-start md:pt-10" onClick={onClose}>
             <div className="bg-white w-full max-w-5xl h-[95vh] md:h-[90vh] md:rounded-3xl flex flex-col overflow-hidden relative shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
 
                 {/* Communication Modals Layer */}
@@ -807,6 +807,20 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                         ) : (
                                             <button disabled className="flex items-center justify-center w-full p-3 rounded-lg bg-gray-100 text-gray-400 cursor-not-allowed">
                                                 <MailIcon className="w-5 h-5 mr-3" /> No Email Available
+                                            </button>
+                                        )}
+
+                                        {isAdmin && onDeleteLead && (
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm('Are you sure you want to delete this lead? This action cannot be undone.')) {
+                                                        onDeleteLead(lead.id);
+                                                        onClose();
+                                                    }
+                                                }}
+                                                className="flex items-center justify-center w-full p-3 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 font-medium transition-colors border border-red-200 mt-4"
+                                            >
+                                                <XMarkIcon className="w-5 h-5 mr-3" /> Delete Lead
                                             </button>
                                         )}
                                     </div>

@@ -894,6 +894,24 @@ const App: React.FC = () => {
   const handleBulkUpdate = useCallback(async (leadIds: string[], newStatus?: LeadStatus, newAssignedSalespersonId?: string) => {
     if (!currentUser) return;
 
+    // Sync with backend API (fire and forget/parallel)
+    try {
+      const promises = leadIds.map(async (id) => {
+        const payload: any = {};
+        if (newStatus) payload.status = newStatus;
+        if (newAssignedSalespersonId) payload.assignedSalespersonId = newAssignedSalespersonId;
+        payload.updatedByName = currentUser.name;
+
+        return api.updateLead(id, payload);
+      });
+
+      await Promise.all(promises);
+      console.log(`✅ Bulk updated ${leadIds.length} leads in backend`);
+    } catch (error) {
+      console.error('❌ Failed to bulk update in backend:', error);
+      // We continue to update locally regardless
+    }
+
     const updates: Partial<Lead> = {};
     if (newStatus) updates.status = newStatus;
     if (newAssignedSalespersonId) updates.assignedSalespersonId = newAssignedSalespersonId;

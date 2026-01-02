@@ -830,6 +830,14 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         setBulkAssignee('');
     };
 
+    const handleBulkDelete = () => {
+        if (!selectedLeadIds.size) return;
+        if (window.confirm(`Are you sure you want to delete ${selectedLeadIds.size} leads? This action cannot be undone.`)) {
+            selectedLeadIds.forEach(id => onDeleteLead(id));
+            setSelectedLeadIds(new Set());
+        }
+    };
+
     const exportToCSV = () => {
         const headers = ['Customer Name', 'Mobile', 'Email', 'City', 'Source', 'Platform', 'Interested Project', 'Property Type', 'Status', 'Sales Person', 'Lead Date', 'Next Follow-up', 'Last Remark'];
         const userMap = new Map(users.map(u => [u.id, u.name]));
@@ -1047,6 +1055,14 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                             <button onClick={handleApplyBulkAction} disabled={!bulkStatus && !bulkAssignee} className="px-3 py-1.5 text-[10px] font-black text-white bg-primary rounded-lg uppercase tracking-widest disabled:opacity-50">
                                 Apply
                             </button>
+                            {isAdmin && (
+                                <button
+                                    onClick={handleBulkDelete}
+                                    className="px-3 py-1.5 text-[10px] font-black text-white bg-red-500 rounded-lg uppercase tracking-widest hover:bg-red-600 ml-auto"
+                                >
+                                    Delete Selected
+                                </button>
+                            )}
                         </div>
                     )
                 }
@@ -1065,6 +1081,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                                 onSelectLead={handleSelectLead}
                                 onSelectAll={handleSelectAll}
                                 allVisibleLeadsSelected={allVisibleLeadsSelected}
+                                onDeleteLead={isAdmin ? onDeleteLead : undefined}
                             />
                             <div className="p-3 border-t border-slate-100 bg-slate-50/50 text-[10px] font-black text-center text-slate-400 tracking-widest uppercase">
                                 Showing {filteredLeads.length} items based on current filters.
