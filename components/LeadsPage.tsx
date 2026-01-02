@@ -645,13 +645,15 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
 
         // 1. Filter by View Mode (Leads vs Opps vs Clients)
         // BUT: For "assigned" and "unassigned" tabs, show ALL statuses
+        // AND: For Admin in 'all' tab (All Enquiries), show ALL statuses/leads
         const adminUser = users.find(u => u.role === 'Admin');
         const isAdmin = currentUser.role === 'Admin';
         const isAssignmentTab = activeTab === 'assigned' || activeTab === 'unassigned';
+        const isAdminAllTab = isAdmin && activeTab === 'all' && viewMode === 'leads';
 
         let filtered: Lead[];
-        if (isAssignmentTab) {
-            // For assignment tabs, show all leads regardless of status
+        if (isAssignmentTab || isAdminAllTab) {
+            // For assignment tabs or Admin All Enquiries, show all leads regardless of status
             filtered = [...leads];
         } else {
             // For other tabs, filter by viewMode statuses
