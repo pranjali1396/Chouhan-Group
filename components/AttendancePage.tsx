@@ -113,7 +113,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
   };
 
   // Calculate generic team stats for metrics (Admin View)
-  const presentCount = dashboardData.filter(u => u.status === 'Online' || u.status === 'Clocked Out').length;
+  const presentCount = dashboardData.filter(u => u.clockIn).length;
   const onlineCount = dashboardData.filter(u => u.status === 'Online').length;
 
   return (
@@ -208,12 +208,12 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${user.status === 'Online' ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' :
-                            user.status === 'Clocked Out' ? 'bg-slate-100 text-slate-600 ring-1 ring-slate-200' :
+                            (user.status === 'Clocked Out' || user.status === 'Offline') ? 'bg-slate-100 text-slate-600 ring-1 ring-slate-200' :
                               user.status === 'Browsing' ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200' :
                                 'bg-rose-100 text-rose-700 ring-1 ring-rose-200'
                             }`}>
                             <span className={`w-1.5 h-1.5 mr-1.5 rounded-full ${user.status === 'Online' || user.status === 'Browsing' ? 'animate-pulse bg-emerald-500' :
-                              user.status === 'Clocked Out' ? 'bg-slate-400' :
+                              (user.status === 'Clocked Out' || user.status === 'Offline') ? 'bg-slate-400' :
                                 'bg-rose-500'
                               }`}></span>
                             {user.status}

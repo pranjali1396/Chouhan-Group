@@ -1054,25 +1054,35 @@ const App: React.FC = () => {
     if (!currentUser) return;
 
     const sendHeartbeat = () => {
-      api.attendancePresence(currentUser.id).catch(() => { });
+      api.attendancePresence(currentUser.id)
+        .then(() => {
+          if (window.location.hostname === 'localhost') {
+            console.debug(`💓 Heartbeat sent for ${currentUser.name} (${currentUser.id})`);
+          }
+        })
+        .catch((err) => {
+          console.warn('💓 Heartbeat failed:', err);
+        });
     };
 
     const handleAway = () => {
-      // Use standard fetch with 'keepalive' for reliability during tab close
-      const apiBaseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5000/api/v1'
-        : 'https://chouhan-crm-backend-staging.onrender.com/api/v1';
+      // Use the resolved API base URL from the service instead of hardcoded strings
+      const apiBaseUrl = api.getBaseUrl?.() || (
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? 'http://localhost:5000/api/v1'
+          : 'https://chouhan-crm-backend-staging.onrender.com/api/v1'
+      );
 
       fetch(`${apiBaseUrl}/attendance/away`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser.id }),
         keepalive: true
-      });
+      }).catch(() => { });
     };
 
     sendHeartbeat();
-    const interval = setInterval(sendHeartbeat, 60000); // 1 minute
+    const interval = setInterval(sendHeartbeat, 30000); // 30 seconds
 
     window.addEventListener('beforeunload', handleAway);
 

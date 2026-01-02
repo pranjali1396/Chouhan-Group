@@ -30,9 +30,13 @@ const getApiBaseUrl = () => {
   return 'http://localhost:5000/api/v1';
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
+  public getBaseUrl() {
+    return API_BASE_URL;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}

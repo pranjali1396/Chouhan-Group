@@ -1660,12 +1660,11 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
       if (record) {
         mappedAttendanceIds.add(record.id);
         if (record.clock_out) {
-          status = 'Clocked Out';
+          status = 'Offline'; // Changed from 'Clocked Out' per user request
         } else if (isPresenceActive) {
           status = 'Online';
-        } else if (isAway) {
-          status = 'Away';
         } else {
+          // Both 'Away' (tab closed) and actually timed out are shown as 'Offline'
           status = 'Offline';
         }
         clockIn = record.clock_in;
@@ -1676,7 +1675,7 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
         duration = `${Math.floor(diffMs / 3600000)}h ${Math.floor((diffMs % 3600000) / 60000)}m`;
       } else {
         if (isPresenceActive) status = 'Browsing';
-        else if (isAway) status = 'Away';
+        else status = 'Offline'; // Includes Away
       }
 
       return {
@@ -1692,7 +1691,7 @@ app.get('/api/v1/attendance/dashboard', async (req, res) => {
       const diffMs = end - start;
       dashboardData.push({
         id: record.user_id, name: `Unknown (${record.user_id.substring(0, 5)})`, role: 'Guest',
-        status: record.clock_out ? 'Clocked Out' : 'Online',
+        status: record.clock_out ? 'Offline' : 'Online',
         clockIn: record.clock_in, location: record.location_in,
         duration: `${Math.floor(diffMs / 3600000)}h ${Math.floor((diffMs % 3600000) / 60000)}m`,
         weeklyHours: 'N/A', weeklyBreakdown: {}, userId: record.user_id
