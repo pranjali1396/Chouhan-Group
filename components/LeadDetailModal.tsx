@@ -473,8 +473,8 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-end md:items-start md:pt-10" onClick={onClose}>
-            <div className="bg-white w-full max-w-5xl h-[95vh] md:h-[90vh] md:rounded-3xl flex flex-col overflow-hidden relative shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-start md:pt-10" onClick={onClose}>
+            <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] md:rounded-3xl flex flex-col overflow-hidden relative shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
 
                 {/* Communication Modals Layer */}
                 <Suspense fallback={null}>
@@ -489,34 +489,34 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                 </Suspense>
 
                 {/* Header: Premium Drawer Header */}
-                <div className="px-6 py-6 border-b border-slate-100 bg-white sticky top-0 z-10 shrink-0">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-3">
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">{lead.customerName}</h2>
+                <div className="px-4 py-4 md:px-6 md:py-6 border-b border-slate-100 bg-white sticky top-0 z-10 shrink-0">
+                    <div className="flex justify-between items-start mb-3 md:mb-4">
+                        <div className="space-y-0.5 md:space-y-1">
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{lead.customerName}</h2>
                                 <StatusBadge type="temp" value={lead.temperature} />
                             </div>
-                            <div className="flex flex-wrap gap-3 items-center">
-                                <span className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest"><PhoneIcon className="w-3.5 h-3.5 mr-1.5" /> {lead.mobile}</span>
-                                <span className="flex items-center text-xs font-black text-slate-400 uppercase tracking-widest"><BuildingOfficeIcon className="w-3.5 h-3.5 mr-1.5" /> {lead.interestedProject || 'General Enquiry'}</span>
+                            <div className="flex flex-wrap gap-2 md:gap-3 items-center">
+                                <span className="flex items-center text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-widest"><PhoneIcon className="w-3 md:w-3.5 h-3 md:h-3.5 mr-1 md:mr-1.5" /> {lead.mobile}</span>
+                                <span className="flex items-center text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-widest"><BuildingOfficeIcon className="w-3 md:w-3.5 h-3 md:h-3.5 mr-1 md:mr-1.5" /> {lead.interestedProject || 'General Enquiry'}</span>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-3 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-2xl transition-all active:scale-90">
-                            <XMarkIcon className="w-6 h-6" />
+                        <button onClick={onClose} className="p-2 md:p-3 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl md:rounded-2xl transition-all active:scale-90">
+                            <XMarkIcon className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
                     </div>
 
                     {/* Quick Access Mobile Actions */}
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                        <button onClick={handleInitiateCall} className="flex-1 min-w-[120px] py-3 bg-emerald-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 transition-all">
-                            <PhoneIcon className="w-4 h-4" /> Call Now
+                    <div className="flex gap-1.5 md:gap-2 overflow-x-auto pb-1 md:pb-2 scrollbar-hide">
+                        <button onClick={handleInitiateCall} className="flex-1 min-w-[100px] md:min-w-[120px] py-2.5 md:py-3 bg-emerald-500 text-white rounded-xl md:rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100 flex items-center justify-center gap-1.5 md:gap-2 active:scale-95 transition-all">
+                            <PhoneIcon className="w-3.5 h-3.5 md:w-4 md:h-4" /> Call Now
                         </button>
-                        <button onClick={() => setShowSMSModal(true)} className="flex-1 min-w-[120px] py-3 bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 active:scale-95 transition-all">
-                            <ChatBubbleLeftRightIcon className="w-4 h-4" /> WhatsApp
+                        <button onClick={() => setShowSMSModal(true)} className="flex-1 min-w-[100px] md:min-w-[120px] py-2.5 md:py-3 bg-indigo-500 text-white rounded-xl md:rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 flex items-center justify-center gap-1.5 md:gap-2 active:scale-95 transition-all">
+                            <ChatBubbleLeftRightIcon className="w-3.5 h-3.5 md:w-4 md:h-4" /> WhatsApp
                         </button>
                         {lead.email && (
-                            <button onClick={() => setShowEmailModal(true)} className="flex-1 min-w-[120px] py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-200 flex items-center justify-center gap-2 active:scale-95 transition-all">
-                                <MailIcon className="w-4 h-4" /> Email
+                            <button onClick={() => setShowEmailModal(true)} className="flex-1 min-w-[100px] md:min-w-[120px] py-2.5 md:py-3 bg-slate-900 text-white rounded-xl md:rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-widest shadow-lg shadow-slate-200 flex items-center justify-center gap-1.5 md:gap-2 active:scale-95 transition-all">
+                                <MailIcon className="w-3.5 h-3.5 md:w-4 md:h-4" /> Email
                             </button>
                         )}
                     </div>
@@ -545,11 +545,11 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                 <div className="flex-1 overflow-y-auto bg-slate-50/50">
 
                     {activeTab === 'Details' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2 space-y-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 p-4 md:p-6">
+                            <div className="lg:col-span-2 space-y-4 md:space-y-6">
                                 {/* Update Section */}
-                                <div className="card p-5">
-                                    <h3 className="text-lg font-bold mb-4">Update Status</h3>
+                                <div className="card p-4 md:p-5">
+                                    <h3 className="text-base md:text-lg font-bold mb-3 md:mb-4">Update Status</h3>
                                     {newStatus !== lead.status && (
                                         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                                             <p className="text-sm text-yellow-800 font-medium">
@@ -557,7 +557,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                             </p>
                                         </div>
                                     )}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                                         <div>
                                             <label className="label-style">Stage</label>
                                             <select
@@ -592,9 +592,9 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                     </div>
 
                                     {/* Status Remark - Always visible for current/selected status */}
-                                    <div className="mt-4 bg-gray-50 p-5 rounded-lg border-2 border-gray-300">
-                                        <label className="label-style flex items-center gap-2 font-bold text-lg text-gray-900 mb-3">
-                                            <DocumentTextIcon className="w-6 h-6 text-gray-700" />
+                                    <div className="mt-4 bg-gray-50 p-4 md:p-5 rounded-lg border-2 border-gray-300">
+                                        <label className="label-style flex items-center gap-2 font-bold text-base md:text-lg text-gray-900 mb-2 md:mb-3">
+                                            <DocumentTextIcon className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
                                             {newStatus !== lead.status ? (
                                                 <>Status Change Remark for <span className="text-primary">{newStatus}</span></>
                                             ) : (
@@ -764,9 +764,9 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                 </div>
 
                                 {/* Info Grid */}
-                                <div className="card p-5">
-                                    <h3 className="text-lg font-bold mb-4">Lead Details</h3>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div className="card p-4 md:p-5">
+                                    <h3 className="text-base md:text-lg font-bold mb-3 md:mb-4">Lead Details</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                                         <DetailItem label="Assigned Agent" value={salesperson?.name} />
                                         <DetailItem label="Source" value={lead.modeOfEnquiry} />
                                         <DetailItem label="Budget" value={lead.budget} />

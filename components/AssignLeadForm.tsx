@@ -108,15 +108,15 @@ const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onA
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-8">
+            <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4 md:space-y-8">
 
                 {/* Section 1: Customer Profile */}
                 <div>
-                    <h4 className="text-sm font-bold text-primary uppercase tracking-wider mb-4 flex items-center">
-                        <UserCircleIcon className="w-5 h-5 mr-2" />
+                    <h4 className="text-xs md:text-sm font-bold text-primary uppercase tracking-wider mb-3 md:mb-4 flex items-center">
+                        <UserCircleIcon className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                         Customer Profile
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         <div>
                             <label htmlFor="customerName" className="label-style">Customer Name <span className="text-red-500">*</span></label>
                             <input type="text" id="customerName" name="customerName" value={formData.customerName} onChange={handleChange} className="input-style" placeholder="e.g., John Doe" />
@@ -140,11 +140,11 @@ const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onA
 
                 {/* Section 2: Requirements */}
                 <div>
-                    <h4 className="text-sm font-bold text-primary uppercase tracking-wider mb-4 flex items-center">
-                        <BuildingOfficeIcon className="w-5 h-5 mr-2" />
+                    <h4 className="text-xs md:text-sm font-bold text-primary uppercase tracking-wider mb-3 md:mb-4 flex items-center">
+                        <BuildingOfficeIcon className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                         Requirements & Preferences
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         <div>
                             <label htmlFor="interestedProject" className="label-style">Project Interest</label>
                             <input type="text" id="interestedProject" name="interestedProject" value={formData.interestedProject} onChange={handleChange} className="input-style" placeholder="e.g., Sunrise City" />
@@ -191,11 +191,11 @@ const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onA
 
                 {/* Section 3: Source & Assignment */}
                 <div>
-                    <h4 className="text-sm font-bold text-primary uppercase tracking-wider mb-4 flex items-center">
-                        <CurrencyRupeeIcon className="w-5 h-5 mr-2" />
+                    <h4 className="text-xs md:text-sm font-bold text-primary uppercase tracking-wider mb-3 md:mb-4 flex items-center">
+                        <CurrencyRupeeIcon className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                         Source & Assignment
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         <div>
                             <label htmlFor="platform" className="label-style">Lead Source</label>
                             <select id="platform" name="platform" value={formData.platform} onChange={handleChange} className="input-style">
@@ -217,7 +217,7 @@ const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onA
                         ) : (
                             <div className="md:col-span-1">
                                 <label className="label-style">Assignment</label>
-                                <div className="p-3 bg-blue-50 text-blue-800 rounded-xl text-sm border border-blue-100">
+                                <div className="p-3 bg-blue-50 text-blue-800 rounded-xl text-xs md:text-sm border border-blue-100 font-semibold italic">
                                     Lead will be submitted to Admin for approval.
                                 </div>
                             </div>
@@ -229,18 +229,18 @@ const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onA
                     </div>
                 </div>
 
-                {error && <p className="text-red-600 font-medium text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
-                {success && <p className="text-green-600 font-medium text-sm bg-green-50 p-3 rounded-lg">{success}</p>}
+                {error && <p className="text-red-600 font-bold text-xs md:text-sm bg-red-50 p-3 rounded-lg border border-red-100">{error}</p>}
+                {success && <p className="text-green-600 font-bold text-xs md:text-sm bg-green-50 p-3 rounded-lg border border-green-100">{success}</p>}
 
-                <div className="pt-4 flex justify-end gap-3">
+                <div className="pt-2 md:pt-4 flex flex-col md:flex-row justify-end gap-3">
+                    <button type="submit" className="button-primary w-full md:w-auto md:px-8 order-1 md:order-2">
+                        {isAdmin ? 'Create & Assign Lead' : 'Submit Lead'}
+                    </button>
                     {onCancel && (
-                        <button type="button" onClick={onCancel} className="button-secondary w-full md:w-auto md:px-8">
+                        <button type="button" onClick={onCancel} className="button-secondary p-3 md:py-3 md:px-8 w-full md:w-auto order-2 md:order-1 text-[11px] md:text-sm font-bold uppercase tracking-widest border-0">
                             Cancel
                         </button>
                     )}
-                    <button type="submit" className="button-primary w-full md:w-auto md:px-8">
-                        {isAdmin ? 'Create & Assign Lead' : 'Submit Lead'}
-                    </button>
                 </div>
             </form>
         </div>

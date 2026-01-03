@@ -915,9 +915,9 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                     {/* Primary Action Button */}
                     <button
                         onClick={() => setShowAddLead(true)}
-                        className="grad-primary flex items-center px-2 py-1.5 md:px-5 md:py-2.5 text-[8px] md:text-sm font-black rounded-lg md:rounded-xl text-white shadow-lg shadow-indigo-200 active:scale-95 touch-manipulation uppercase tracking-wider"
+                        className="grad-primary flex items-center px-3 py-2 md:px-5 md:py-2.5 text-[11px] md:text-sm font-black rounded-lg md:rounded-xl text-white shadow-lg shadow-indigo-200 active:scale-95 touch-manipulation uppercase tracking-wider"
                     >
-                        <PlusIcon className="w-3 h-3 md:w-5 md:h-5 mr-0.5 md:mr-2" />
+                        <PlusIcon className="w-3.5 h-3.5 md:w-5 md:h-5 mr-1 md:mr-2" />
                         <span>Add Lead</span>
                     </button>
 
@@ -1096,20 +1096,19 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
             {/* Add Lead Modal */}
             {
                 showAddLead && (
-                    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                        <div className="flex items-start md:items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                    <div className="fixed inset-0 z-[110] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                        <div className="flex items-start md:items-center justify-center min-h-screen pt-2 md:pt-10 px-2 md:px-4 pb-2 text-center sm:block sm:p-0">
                             {/* Backdrop with explicit rgba fallback to prevent black screen */}
                             <div
-                                className="fixed inset-0 bg-black/50 transition-opacity"
+                                className="fixed inset-0 bg-slate-900/60 transition-opacity backdrop-blur-sm"
                                 aria-hidden="true"
                                 onClick={() => setShowAddLead(false)}
-                                style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
                             ></div>
 
                             {/* Centering trick */}
                             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                            <div className="inline-block align-top md:align-middle bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-4xl sm:w-full max-h-[95vh] overflow-y-auto relative z-10 w-full mx-auto">
+                            <div className="inline-block align-top md:align-middle bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-4xl sm:w-full max-h-[98vh] overflow-y-auto relative z-10 w-full mx-auto">
                                 <AssignLeadForm
                                     users={users}
                                     currentUser={currentUser}

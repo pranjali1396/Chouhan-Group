@@ -18,7 +18,7 @@ interface DatabaseSchema {
 
 // Helper to parse raw mock data into clean objects (Same logic as the old GoogleSheetService)
 const parseDate = (dateStr: string | undefined): string | undefined => {
-    if (!dateStr || typeof dateStr !== 'string' ) return undefined;
+    if (!dateStr || typeof dateStr !== 'string') return undefined;
     const parts = dateStr.replace(/\./g, '/').split('/');
     if (parts.length === 3) {
         const [day, month, year] = parts;
@@ -77,19 +77,19 @@ const seedData = (): DatabaseSchema => {
         if (temperatureStr === 'hot') temperature = 'Hot';
         else if (temperatureStr === 'warm') temperature = 'Warm';
         else if (temperatureStr === 'cold') temperature = 'Cold';
-        
+
         let status: LeadStatus = LeadStatus.New;
         const bookingStatus = (d['Booking Status'] || '').toLowerCase();
-        
+
         if (bookingStatus.includes('book') || bookingStatus.includes('done')) status = LeadStatus.Booking;
         else if (bookingStatus.includes('drop') || temperatureStr === 'cancel') status = LeadStatus.Lost;
         else if (d['Visit YES/No']?.toLowerCase() === 'yes') status = LeadStatus.SiteVisitDone;
         else if (d['Visit Date'] && d['Visit Date'].match(/\d{1,2}[./]\d{1,2}[./]\d{4}/)) status = LeadStatus.SiteVisitScheduled;
         else if (d['Followup'] || d['Visit Remark']) status = LeadStatus.Qualified;
-        
+
         const leadDate = parseDate(d['Lead Date']);
         const lastRemarkDate = parseDate(d['Remark Date']);
-        
+
         const lead: Lead = {
             id: `lead-${index + 1}`,
             customerName: d['Customer Name'],
@@ -132,24 +132,24 @@ const seedData = (): DatabaseSchema => {
     // Find users by name instead of hardcoded IDs
     const amitUser = users.find(u => u.name === 'Amit Naithani');
     const adminUser = users.find(u => u.role === 'Admin');
-    
+
     const tasks: Task[] = [
-        { 
-            id: 'task-1', 
-            title: 'Follow up with Mithlesh Tiwari', 
-            assignedToId: amitUser?.id || users[1]?.id || '', 
-            dueDate: new Date().toISOString(), 
-            isCompleted: false, 
-            createdBy: 'Admin', 
-            hasReminded: true 
+        {
+            id: 'task-1',
+            title: 'Follow up with Mithlesh Tiwari',
+            assignedToId: amitUser?.id || users[1]?.id || '',
+            dueDate: new Date().toISOString(),
+            isCompleted: false,
+            createdBy: 'Admin',
+            hasReminded: true
         },
-        { 
-            id: 'task-2', 
-            title: 'Prepare report for October leads', 
-            assignedToId: adminUser?.id || users[0]?.id || '', 
-            dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), 
-            isCompleted: false, 
-            createdBy: 'Admin' 
+        {
+            id: 'task-2',
+            title: 'Prepare report for October leads',
+            assignedToId: adminUser?.id || users[0]?.id || '',
+            dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+            isCompleted: false,
+            createdBy: 'Admin'
         },
     ];
 
@@ -255,8 +255,6 @@ class DatabaseService {
     // --- Public API ---
 
     async getAllData() {
-        // Simulate network latency
-        await new Promise(resolve => setTimeout(resolve, 600));
         return { ...this.data };
     }
 
@@ -330,7 +328,7 @@ class DatabaseService {
     async bookUnit(unitId: string) {
         this.data.inventory = this.data.inventory.map(proj => ({
             ...proj,
-            units: proj.units.map(unit => 
+            units: proj.units.map(unit =>
                 unit.id === unitId ? { ...unit, status: 'Booked' } : unit
             )
         }));
@@ -368,7 +366,7 @@ class DatabaseService {
         if (projectIndex !== -1) {
             const project = this.data.inventory[projectIndex];
             const unit = project.units.find(u => u.id === unitId);
-            
+
             project.units = project.units.filter(u => u.id !== unitId);
             project.totalUnits -= 1;
             if (unit && unit.status === 'Available') {
@@ -423,7 +421,7 @@ class DatabaseService {
     async deleteUser(userId: string, reassignToId: string) {
         this.data.users = this.data.users.filter(u => u.id !== userId);
         // Reassign leads
-        this.data.leads = this.data.leads.map(l => 
+        this.data.leads = this.data.leads.map(l =>
             l.assignedSalespersonId === userId ? { ...l, assignedSalespersonId: reassignToId } : l
         );
         this.save();

@@ -2,7 +2,7 @@
 import React, { memo } from 'react';
 import type { Lead, User } from '../types';
 import { LeadStatus } from '../types';
-import { PhoneIcon, MapPinIcon, UserCircleIcon } from './Icons';
+import { PhoneIcon, MapPinIcon, UserCircleIcon, XMarkIcon } from './Icons';
 
 interface LeadsTableProps {
     leads: Lead[];
@@ -135,13 +135,29 @@ const MobileLeadCard: React.FC<LeadRowProps> = memo(({ lead, salespersonName, is
                 )}
             </div>
 
-            {/* Detailed View CTA */}
-            <button
-                onClick={() => onOpenModal(lead)}
-                className="w-full py-2 bg-slate-900 hover:bg-black text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-md transition-all active:scale-[0.97] flex items-center justify-center gap-1.5"
-            >
-                View Full Log
-            </button>
+            {/* Detailed View & Actions CTA */}
+            <div className="flex gap-2 mt-1">
+                <button
+                    onClick={() => onOpenModal(lead)}
+                    className="flex-1 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md transition-all active:scale-[0.97] flex items-center justify-center gap-1.5"
+                >
+                    View Details
+                </button>
+                {onDeleteLead && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm('Are you sure you want to delete this lead?')) {
+                                onDeleteLead(lead.id);
+                            }
+                        }}
+                        className="px-3 bg-red-50 text-red-600 border border-red-100 rounded-xl active:scale-90 transition-all flex items-center justify-center"
+                        title="Delete Lead"
+                    >
+                        <XMarkIcon className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
         </div>
     </div>
 ));
