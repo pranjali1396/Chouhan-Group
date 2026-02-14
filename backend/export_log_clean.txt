@@ -1,0 +1,94 @@
+﻿≡ƒÜÇ Starting Supabase data export...
+
+≡ƒôè Exporting users...
+node : Γ¥î Error exporting 
+users: {
+At line:1 char:1
++ node scripts/export-supabas
+e-data.js > export_log.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo           
+   : NotSpecified: (Γ¥î Err  
+  or exporting users: {:St   
+ ring) [], RemoteExceptio    
+n
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+  message: 'TypeError: fetch 
+failed',
+  details: 'TypeError: fetch 
+failed\n' +
+    '\n' +
+    'Caused by: Error: 
+getaddrinfo ENOTFOUND ymbjoiv
+ojiijvapvcevm.supabase.co 
+(ENOTFOUND)\n' +
+    'Error: getaddrinfo 
+ENOTFOUND ymbjoivojiijvapvcev
+m.supabase.co\n' +
+    '    at GetAddrInfoReqWra
+p.onlookupall [as 
+oncomplete] 
+(node:dns:122:26)',
+  hint: '',
+  code: ''
+}
+≡ƒôè Exporting leads...
+Γ¥î Error exporting leads: {
+  message: 'TypeError: fetch 
+failed',
+  details: 'TypeError: fetch 
+failed\n' +
+    '\n' +
+    'Caused by: Error: 
+getaddrinfo ENOTFOUND ymbjoiv
+ojiijvapvcevm.supabase.co 
+(ENOTFOUND)\n' +
+    'Error: getaddrinfo 
+ENOTFOUND ymbjoivojiijvapvcev
+m.supabase.co\n' +
+    '    at GetAddrInfoReqWra
+p.onlookupall [as 
+oncomplete] 
+(node:dns:122:26)',
+  hint: '',
+  code: ''
+} TypeError: fetch failed
+
+Caused by: Error: 
+getaddrinfo ENOTFOUND ymbjoiv
+ojiijvapvcevm.supabase.co 
+(ENOTFOUND)
+Error: getaddrinfo ENOTFOUND 
+ymbjoivojiijvapvcevm.supabase
+.co
+    at GetAddrInfoReqWrap.onl
+ookupall [as oncomplete] 
+(node:dns:122:26) 
+≡ƒôè Exporting notifications...
+Γ¥î Error exporting 
+notifications: {
+  message: 'TypeError: fetch 
+failed',
+  details: 'TypeError: fetch 
+failed\n' +
+    '\n' +
+    'Caused by: Error: 
+getaddrinfo ENOTFOUND ymbjoiv
+ojiijvapvcevm.supabase.co 
+(ENOTFOUND)\n' +
+    'Error: getaddrinfo 
+ENOTFOUND ymbjoivojiijvapvcev
+m.supabase.co\n' +
+    '    at GetAddrInfoReqWra
+p.onlookupall [as 
+oncomplete] 
+(node:dns:122:26)',
+  hint: '',
+  code: ''
+}
+Γ£à All data exported successfully!

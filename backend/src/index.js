@@ -557,7 +557,7 @@ app.post('/api/v1/webhooks/lead', async (req, res) => {
                 leadData.purpose || null,
                 leadData.city || null,
                 leadData.platform || null,
-                'website'
+                leadData.source || 'website'
             ]
         );
 
