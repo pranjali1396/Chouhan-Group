@@ -768,10 +768,19 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                     <h3 className="text-base md:text-lg font-bold mb-3 md:mb-4">Lead Details</h3>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                                         <DetailItem label="Assigned Agent" value={salesperson?.name} />
-                                        <DetailItem label="Source" value={lead.modeOfEnquiry} />
+                                        <DetailItem label="Project Interested" value={lead.interestedProject} />
+                                        <DetailItem label="Property Type" value={lead.interestedUnit} />
+                                        <DetailItem label="Configuration" value={lead.configuration} />
                                         <DetailItem label="Budget" value={lead.budget} />
                                         <DetailItem label="Purpose" value={lead.purpose} />
-                                        <DetailItem label="Property Type" value={lead.interestedUnit} />
+                                        <DetailItem label="Funding Source" value={lead.fundingSource} />
+                                        <DetailItem label="Occupation" value={lead.occupation} />
+                                        <DetailItem label="City" value={lead.city} />
+                                        <DetailItem label="Platform" value={lead.platform} />
+                                        <DetailItem label="Source" value={lead.source || lead.modeOfEnquiry} />
+                                        <DetailItem label="Email" value={lead.email} />
+                                        <DetailItem label="Visit Status" value={lead.visitStatus} />
+                                        {lead.labels && lead.labels.length > 0 && <DetailItem label="Labels" value={lead.labels.join(', ')} />}
                                         <DetailItem label="Created On" value={new Date(lead.leadDate).toLocaleDateString()} />
                                         {lead.bookedUnitNumber && <DetailItem label="Booked Unit" value={`${lead.bookedUnitNumber} (${lead.bookedProject})`} />}
                                     </div>

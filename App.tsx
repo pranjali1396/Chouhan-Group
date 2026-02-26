@@ -114,61 +114,27 @@ const App: React.FC = () => {
     setSearchTerm('');
 
     try {
-      // 1. Load from local DB IMMEDIATELY for instant UI response
-      const localData = await db.getAllData();
-
-      // Update UI with local data right away
-      if (localData.users?.length) setUsers(localData.users);
-      if (localData.leads?.length) setLeads(localData.leads);
-      if (localData.activities) setActivities(localData.activities);
-      if (localData.tasks) setTasks(localData.tasks);
-      if (localData.salesTargets) setSalesTargets(localData.salesTargets);
-      if (localData.inventory) setInventory(localData.inventory);
-
-      // If we got local data, we can stop the loading spinner now
-      if (localData.leads?.length > 0) {
-        setIsLoading(false);
-      }
-
-      // 2. Start backend sync in parallel (seamlessly updates UI later)
-      const [backendUsersResult, backendLeadsResult] = await Promise.all([
+      // 1. Start backend fetch immediately
+      const [backendUsersResult, backendLeadsResult, localData] = await Promise.all([
         api.getUsers().then(u => ({ status: 'fulfilled' as const, value: u })).catch(e => ({ status: 'rejected' as const, reason: e })),
-        api.getLeads().then(l => ({ status: 'fulfilled' as const, value: l })).catch(e => ({ status: 'rejected' as const, reason: e }))
+        api.getLeads().then(l => ({ status: 'fulfilled' as const, value: l })).catch(e => ({ status: 'rejected' as const, reason: e })),
+        db.getAllData()
       ]);
 
-      let currentUsers = localData.users || [];
-      let currentLeads = localData.leads || [];
+      // Handle Activities, Tasks, Inventory (In-memory/Local DB only for now)
+      if (localData.activities) setActivities(localData.activities);
+      if (localData.tasks) setTasks(localData.tasks);
+      if (localData.inventory) setInventory(localData.inventory);
 
-      // 3. Process Backend Users
+      // Process and Set Users
       if (backendUsersResult.status === 'fulfilled' && backendUsersResult.value?.length) {
         const backendUsers = backendUsersResult.value;
-        console.log('✅ Loaded users from Supabase:', backendUsers.length);
+        console.log('✅ Loaded users from MySQL:', backendUsers.length);
         setUsers(backendUsers);
-        currentUsers = backendUsers;
-
-        // Background sync users
-        const syncUsersEffect = async () => {
-          const userIdMap = new Map<string, string>();
-          let changed = false;
-          const localUsers = [...(localData.users || [])];
-
-          for (const user of backendUsers) {
-            const existingIdx = localUsers.findIndex(u => u.id === user.id || u.name === user.name);
-            if (existingIdx === -1) {
-              localUsers.push(user);
-              changed = true;
-            } else {
-              if (localUsers[existingIdx].id !== user.id) {
-                userIdMap.set(localUsers[existingIdx].id, user.id);
-                changed = true;
-              }
-              localUsers[existingIdx] = user;
-            }
-          }
-          if (userIdMap.size > 0) await db.updateUserIds(userIdMap);
-          if (changed) await db.saveAllData({ users: localUsers });
-        };
-        syncUsersEffect();
+        // Sync them to local db for components that use db directly
+        await db.saveAllData({ users: backendUsers });
+      } else {
+        console.warn('Failed to load users from backend. Check connection.');
       }
 
       // 4. Process Backend Leads (Batched)
@@ -191,17 +157,7 @@ const App: React.FC = () => {
           source: backendLead.source || 'website'
         }));
 
-        const backendLeadIds = new Set(processedLeads.map(l => l.id));
-        const backendLeadMobiles = new Set(processedLeads.map(l => l.mobile));
-        const localOnlyLeads = (localData.leads || []).filter(
-          lead => !backendLeadIds.has(lead.id) && !backendLeadMobiles.has(lead.mobile)
-        );
-
-        const allLeads = [...processedLeads, ...localOnlyLeads];
-        setLeads(allLeads);
-
-        // Save to local DB once in batch
-        await db.saveAllData({ leads: allLeads });
+        setLeads(processedLeads);
       }
 
     } catch (error) {
@@ -223,10 +179,7 @@ const App: React.FC = () => {
 
     const refreshLeads = async () => {
       try {
-        const [backendLeads, localData] = await Promise.all([
-          api.getLeads(),
-          db.getAllData()
-        ]);
+        const backendLeads = await api.getLeads();
 
         if (backendLeads && backendLeads.length > 0) {
           const processedLeads: Lead[] = backendLeads.map(backendLead => ({
@@ -244,17 +197,7 @@ const App: React.FC = () => {
             source: backendLead.source || 'website'
           }));
 
-          const backendLeadIds = new Set(processedLeads.map(l => l.id));
-          const backendLeadMobiles = new Set(processedLeads.map(l => l.mobile));
-          const localOnlyLeads = (localData.leads || []).filter(
-            lead => !backendLeadIds.has(lead.id) && !backendLeadMobiles.has(lead.mobile)
-          );
-
-          const allLeads = [...processedLeads, ...localOnlyLeads];
-          setLeads(allLeads);
-
-          // Batch save to local DB
-          await db.saveAllData({ leads: allLeads });
+          setLeads(processedLeads);
         }
       } catch (error) {
         console.debug('Auto-refresh leads error:', error);
