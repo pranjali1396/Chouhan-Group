@@ -174,7 +174,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [leads.length]);
+  }, []);
 
 
   useEffect(() => {
@@ -955,13 +955,12 @@ const App: React.FC = () => {
     setActiveView(isAdmin ? 'Dashboard' : 'Leads');
   }, []);
 
-  const handleLogout = useCallback(async () => {
+  const handleLogout = useCallback(() => {
     if (currentUser) {
-      try {
-        await api.attendanceLogout(currentUser.id, true); // True means force clock-out on logout
-      } catch (e) {
+      // Fire and forget logout presence notification (non-blocking)
+      api.attendanceLogout(currentUser.id, true).catch(e => {
         console.warn('Logout presence notification failed', e);
-      }
+      });
     }
     setCurrentUser(null);
     setActiveView('Dashboard');
