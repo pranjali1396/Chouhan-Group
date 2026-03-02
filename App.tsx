@@ -140,6 +140,9 @@ const App: React.FC = () => {
         console.log('✅ Users synced with backend');
         await db.saveAllData({ users: backendUsers });
       }
+
+      // Stop global loading as soon as we have users (allows Login screen to be interactive)
+      setIsLoading(false);
     } catch (e) {
       console.warn('Backend users fetch failed, sticking with local data', e);
       clearTimeout(wakeupTimer);
@@ -172,6 +175,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Background leads fetch error:', error);
     } finally {
+      // Final fallback to ensure loading is off
       setIsLoading(false);
     }
   }, []);
@@ -1255,10 +1259,6 @@ const App: React.FC = () => {
 
   if (!currentUser) {
     return <LoginPage users={users} onLogin={handleLogin} serverWakingUp={serverWakingUp} />;
-  }
-
-  if (isLoading) {
-    return <LoadingSpinner />;
   }
 
   return (
