@@ -26,7 +26,32 @@ class DatabaseService {
     private data: DatabaseSchema;
 
     constructor() {
-        this.data = getEmptySchema();
+        this.data = this.loadFromStorage();
+    }
+
+    private loadFromStorage(): DatabaseSchema {
+        const schema = getEmptySchema();
+        if (typeof window === 'undefined') return schema;
+
+        try {
+            const cachedUsers = localStorage.getItem('crm_cached_users');
+            if (cachedUsers) {
+                schema.users = JSON.parse(cachedUsers);
+                console.log('📦 Loaded users from localStorage cache');
+            }
+        } catch (e) {
+            console.warn('Failed to load from storage', e);
+        }
+        return schema;
+    }
+
+    private saveUsers() {
+        if (typeof window === 'undefined') return;
+        try {
+            localStorage.setItem('crm_cached_users', JSON.stringify(this.data.users));
+        } catch (e) {
+            console.warn('Failed to save users to storage', e);
+        }
     }
 
     async updateUserIds(userIdMap: Map<string, string>) {
@@ -82,7 +107,10 @@ class DatabaseService {
 
     async saveAllData(data: Partial<DatabaseSchema>) {
         if (data.leads) this.data.leads = data.leads;
-        if (data.users) this.data.users = data.users;
+        if (data.users) {
+            this.data.users = data.users;
+            this.saveUsers();
+        }
         if (data.activities) this.data.activities = data.activities;
         if (data.inventory) this.data.inventory = data.inventory;
         if (data.tasks) this.data.tasks = data.tasks;
@@ -219,10 +247,12 @@ class DatabaseService {
 
     async addUser(user: User) {
         this.data.users.push(user);
+        this.saveUsers();
     }
 
     async deleteUser(userId: string, reassignToId: string) {
         this.data.users = this.data.users.filter(u => u.id !== userId);
+        this.saveUsers();
         this.data.leads = this.data.leads.map(l =>
             l.assignedSalespersonId === userId ? { ...l, assignedSalespersonId: reassignToId } : l
         );

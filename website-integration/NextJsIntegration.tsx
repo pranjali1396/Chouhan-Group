@@ -10,9 +10,9 @@ import Script from 'next/script';
  */
 
 export const CRMIntegration = () => {
-    return (
-        <Script id="chouhan-crm-capture" strategy="afterInteractive">
-            {`
+  return (
+    <Script id="chouhan-crm-capture" strategy="afterInteractive">
+      {`
         (function() {
           const CRM_CONFIG = {
             API_URL: 'https://chouhan-crm-backend-staging.onrender.com/api/v1/webhooks/lead',
@@ -37,6 +37,9 @@ export const CRMIntegration = () => {
               email: formData.get('email') || formData.get('your-email') || '',
               source: CRM_CONFIG.SOURCE_NAME,
               interestedProject: CRM_CONFIG.DEFAULT_PROJECT,
+              isBroker: formData.get('broker') || formData.get('Are you a broker?') || '',
+              platform: formData.get('source') || formData.get('How did you hear about us?') || '',
+              interestedUnit: formData.get('homeType') || formData.get('Home type interested in?') || '',
               remarks: 'Enquiry from ' + window.location.hostname + window.location.pathname
             };
 
@@ -59,6 +62,6 @@ export const CRMIntegration = () => {
           document.addEventListener('submit', handleFormSubmit);
         })();
       `}
-        </Script>
-    );
+    </Script>
+  );
 };

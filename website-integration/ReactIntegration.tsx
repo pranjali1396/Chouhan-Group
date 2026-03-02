@@ -27,7 +27,10 @@ export const CRMIntegration = () => {
                 email: formData.get('email') || formData.get('your-email') || '',
                 source: 'Chouhan Group Website',
                 interestedProject: 'General Inquiry',
-                remarks: 'Captured from React App'
+                isBroker: formData.get('broker') || formData.get('Are you a broker?') || '',
+                platform: formData.get('source') || formData.get('How did you hear about us?') || '',
+                interestedUnit: formData.get('homeType') || formData.get('Home type interested in?') || '',
+                remarks: 'Captured from React App: ' + window.location.pathname
             };
 
             if (payload.mobile || payload.customerName !== 'Website Lead') {

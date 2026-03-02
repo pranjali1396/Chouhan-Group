@@ -25,6 +25,7 @@ const initialFormState: NewLeadData = {
     assignedSalespersonId: '',
     budget: '',
     purpose: undefined,
+    isBroker: 'No',
 };
 
 const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onAssignLead, onCancel }) => {
@@ -132,6 +133,13 @@ const AssignLeadForm: React.FC<AssignLeadFormProps> = ({ users, currentUser, onA
                         <div>
                             <label htmlFor="city" className="label-style">Current City</label>
                             <input type="text" id="city" name="city" value={formData.city} onChange={handleChange} className="input-style" placeholder="e.g., Raipur" />
+                        </div>
+                        <div>
+                            <label htmlFor="isBroker" className="label-style">Are you a broker?</label>
+                            <select id="isBroker" name="isBroker" value={formData.isBroker} onChange={handleChange} className="input-style">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
                         </div>
                     </div>
                 </div>

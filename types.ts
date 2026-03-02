@@ -77,15 +77,16 @@ export interface Lead {
   fundingSource?: 'Self' | 'Bank Loan' | 'Part Loan';
   purpose?: 'Investment' | 'Self Use';
   configuration?: string; // e.g., 2BHK, 3BHK
-  
+
   // Booking Specifics
   bookedProject?: string;
   bookedUnitNumber?: string;
   bookedUnitId?: string;
-  
+
   // Contact Details (for Contacted status)
   contactDate?: string; // ISO date string
   contactDuration?: number; // in minutes
+  isBroker?: string; // Capture "Yes" or "No" from website forms
 }
 
 export interface Activity {
@@ -95,7 +96,7 @@ export interface Activity {
   type: ActivityType;
   date: string;
   remarks: string;
-  customerName: string; 
+  customerName: string;
   duration?: number; // in minutes
 }
 
@@ -113,15 +114,15 @@ export interface SalesTarget {
 }
 
 export interface Task {
-    id: string;
-    title: string;
-    assignedToId: string;
-    dueDate: string;
-    isCompleted: boolean;
-    createdBy: string;
-    reminderDate?: string; // ISO Date string for when the notification should fire
-    hasReminded?: boolean; // Flag to check if notification has already been sent
-    remarks?: string; // Remarks/comments for the task
+  id: string;
+  title: string;
+  assignedToId: string;
+  dueDate: string;
+  isCompleted: boolean;
+  createdBy: string;
+  reminderDate?: string; // ISO Date string for when the notification should fire
+  hasReminded?: boolean; // Flag to check if notification has already been sent
+  remarks?: string; // Remarks/comments for the task
 }
 
 export interface Notification {

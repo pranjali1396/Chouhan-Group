@@ -105,7 +105,8 @@ const formatLeadResponse = (row) => {
         purpose: row.purpose || null,
         city: row.city || '',
         platform: row.platform || '',
-        source: row.source_website || 'website'
+        source: row.source_website || 'website',
+        isBroker: row.is_broker || 'No'
     };
 };
 // Helper to format JS Date/ISO string for MySQL DATETIME
@@ -187,7 +188,8 @@ app.post('/api/v1/leads', async (req, res) => {
             purpose: leadData.purpose || null,
             city: leadData.city || null,
             platform: leadData.platform || null,
-            source_website: leadData.source || 'CRM'
+            source_website: leadData.source || 'CRM',
+            is_broker: leadData.isBroker || 'No'
         };
 
         console.log('✅ Step 4 - Lead object built');
@@ -201,8 +203,8 @@ app.post('/api/v1/leads', async (req, res) => {
         interested_project, interested_unit, temperature, visit_status,
         visit_date, next_follow_up_date, last_remark, booking_status,
         is_read, missed_visits_count, labels, budget, purpose, city,
-        platform, source_website
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        platform, source_website, is_broker
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 newLead.id, newLead.customer_name, newLead.mobile, newLead.email,
                 newLead.status, newLead.assigned_salesperson_id, newLead.lead_date,
@@ -212,7 +214,7 @@ app.post('/api/v1/leads', async (req, res) => {
                 newLead.next_follow_up_date, newLead.last_remark, newLead.booking_status,
                 newLead.is_read, newLead.missed_visits_count, newLead.labels,
                 newLead.budget, newLead.purpose, newLead.city, newLead.platform,
-                newLead.source_website
+                newLead.source_website, newLead.is_broker
             ]
         );
 
@@ -483,131 +485,8 @@ app.put('/api/v1/leads/:id', async (req, res) => {
     }
 });
 
-// Webhook endpoint to receive leads from websites
-app.post('/api/v1/webhooks/lead', async (req, res) => {
-    try {
-        const leadData = req.body;
 
-        console.log('\n✅ ===== LEAD RECEIVED FROM WEBSITE =====');
-        console.log('📋 Lead Data:', JSON.stringify(leadData, null, 2));
-        console.log('⏰ Received at:', new Date().toISOString());
-        console.log('🌐 Source:', leadData.source || 'Unknown');
-        console.log('==========================================\n');
 
-        // Basic validation
-        if (!leadData.customerName && !leadData.mobile) {
-            return res.status(400).json({
-                success: false,
-                error: 'customerName or mobile is required'
-            });
-        }
-
-        // Normalize data for Chouhan Park View website
-        if (leadData.source && leadData.source.includes('Chouhan Park View')) {
-            if (!leadData.interestedProject) {
-                leadData.interestedProject = 'Chouhan Park View';
-            }
-            if (leadData.metadata && leadData.metadata.home_type) {
-                const homeType = leadData.metadata.home_type;
-                if (homeType.includes('Bedroom')) {
-                    leadData.interestedUnit = leadData.interestedUnit || 'Flat';
-                }
-            }
-        }
-
-        leadData.source = 'website';
-        leadData.modeOfEnquiry = 'Website';
-
-        const now = new Date();
-        const leadId = randomUUID();
-
-        await mysqlPool.query(
-            `INSERT INTO leads (
-        id, customer_name, mobile, email, status, assigned_salesperson_id,
-        lead_date, last_activity_date, month, mode_of_enquiry, occupation,
-        interested_project, interested_unit, temperature, visit_status,
-        visit_date, next_follow_up_date, last_remark, booking_status,
-        is_read, missed_visits_count, labels, budget, purpose, city,
-        platform, source_website
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                leadId,
-                leadData.customerName || '',
-                leadData.mobile || null,
-                leadData.email || null,
-                'New Lead',
-                null,
-                toMySQLDate(now),
-                toMySQLDate(now),
-                now.toLocaleString('default', { month: 'long', year: 'numeric' }),
-                'Website',
-                leadData.occupation || null,
-                leadData.interestedProject || 'Chouhan Park View',
-                leadData.interestedUnit || null,
-                leadData.temperature || null,
-                'No',
-                null,
-                null,
-                leadData.remarks || `Inquiry from ${leadData.source || 'website'}${leadData.city ? ` (${leadData.city})` : ''}`,
-                null,
-                false,
-                0,
-                JSON.stringify([]),
-                leadData.budget || null,
-                leadData.purpose || null,
-                leadData.city || null,
-                leadData.platform || null,
-                leadData.source || 'website'
-            ]
-        );
-
-        console.log('💾 Lead saved to MySQL with id:', leadId);
-
-        // Create notification for admin users about new lead
-        const notificationId = randomUUID();
-
-        await mysqlPool.query(
-            `INSERT INTO notifications (id, type, message, lead_id, lead_data, target_role, target_user_id, created_at, is_read)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                notificationId,
-                'new_lead',
-                `New lead from ${leadData.customerName || 'Unknown'}`,
-                leadId,
-                JSON.stringify({
-                    customerName: leadData.customerName || '',
-                    mobile: leadData.mobile || '',
-                    email: leadData.email || '',
-                    interestedProject: leadData.interestedProject || '',
-                    status: 'New Lead',
-                    source: leadData.source || 'website'
-                }),
-                'Admin',
-                null,
-                toMySQLDate(now),
-                false
-            ]
-        );
-
-        console.log(`🔔 Notification saved to MySQL for new lead: ${leadData.customerName || 'Unknown'}`);
-
-        res.json({
-            success: true,
-            message: 'Lead received successfully!',
-            leadId: leadId,
-            receivedData: leadData,
-            timestamp: now.toISOString()
-        });
-
-    } catch (error) {
-        console.error('❌ Error processing webhook:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error',
-            message: error.message
-        });
-    }
-});
 
 // Get notifications endpoint
 app.get('/api/v1/notifications', async (req, res) => {

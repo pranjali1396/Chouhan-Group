@@ -778,6 +778,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, users, onClose,
                                         <DetailItem label="City" value={lead.city} />
                                         <DetailItem label="Platform" value={lead.platform} />
                                         <DetailItem label="Source" value={lead.source || lead.modeOfEnquiry} />
+                                        <DetailItem label="Are you a Broker?" value={lead.isBroker} />
                                         <DetailItem label="Email" value={lead.email} />
                                         <DetailItem label="Visit Status" value={lead.visitStatus} />
                                         {lead.labels && lead.labels.length > 0 && <DetailItem label="Labels" value={lead.labels.join(', ')} />}

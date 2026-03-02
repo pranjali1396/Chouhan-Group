@@ -60,5 +60,8 @@ The script automatically listens for **any form submission** on your website. It
 - `name`, `your-name`, `customerName`, `userName`
 - `phone`, `mobile`, `your-tel`
 - `email`, `your-email`
+- `broker`, `Are you a broker?` (New!)
+- `homeType`, `Home type interested in?` (New!)
+- `source`, `How did you hear about us?` (New!)
 
 When a user clicks "Submit", the data is instantly sent to your CRM and saved in your cPanel database.

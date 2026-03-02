@@ -32,6 +32,7 @@ export interface NewLeadData {
   assignedSalespersonId: string;
   budget?: string;
   purpose?: 'Investment' | 'Self Use';
+  isBroker?: string;
 }
 
 const LoadingSpinner: React.FC = () => (
@@ -103,45 +104,54 @@ const App: React.FC = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [targetLeadId, setTargetLeadId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
+  const [serverWakingUp, setServerWakingUp] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const loadData = useCallback(async () => {
-    // Only show global spinner if we have no leads already cached in state
+    // Phase 1: Initialize from local cache immediately
+    const localData = await db.getAllData();
+    if (localData.users.length > 0) {
+      setUsers(localData.users);
+      console.log('⚡ Using cached users for instant login list');
+    }
+
+    if (localData.activities) setActivities(localData.activities);
+    if (localData.tasks) setTasks(localData.tasks);
+    if (localData.inventory) setInventory(localData.inventory);
+
+    // Initial load state logic
     if (leads.length === 0) {
       setIsLoading(true);
     }
     setSearchTerm('');
 
+    // Phase 2: Wake up the server and get Users (Critical for Login)
+    const wakeupTimer = setTimeout(() => setServerWakingUp(true), 3000);
+
     try {
-      // 1. Start backend fetch immediately
-      const [backendUsersResult, backendLeadsResult, localData] = await Promise.all([
-        api.getUsers().then(u => ({ status: 'fulfilled' as const, value: u })).catch(e => ({ status: 'rejected' as const, reason: e })),
-        api.getLeads().then(l => ({ status: 'fulfilled' as const, value: l })).catch(e => ({ status: 'rejected' as const, reason: e })),
-        db.getAllData()
-      ]);
+      console.log('📡 Fetching users from backend...');
+      const backendUsers = await api.getUsers();
+      clearTimeout(wakeupTimer);
+      setServerWakingUp(false);
 
-      // Handle Activities, Tasks, Inventory (In-memory/Local DB only for now)
-      if (localData.activities) setActivities(localData.activities);
-      if (localData.tasks) setTasks(localData.tasks);
-      if (localData.inventory) setInventory(localData.inventory);
-
-      // Process and Set Users
-      if (backendUsersResult.status === 'fulfilled' && backendUsersResult.value?.length) {
-        const backendUsers = backendUsersResult.value;
-        console.log('✅ Loaded users from MySQL:', backendUsers.length);
+      if (backendUsers && backendUsers.length > 0) {
         setUsers(backendUsers);
-        // Sync them to local db for components that use db directly
+        console.log('✅ Users synced with backend');
         await db.saveAllData({ users: backendUsers });
-      } else {
-        console.warn('Failed to load users from backend. Check connection.');
       }
+    } catch (e) {
+      console.warn('Backend users fetch failed, sticking with local data', e);
+      clearTimeout(wakeupTimer);
+      setServerWakingUp(false);
+    }
 
-      // 4. Process Backend Leads (Batched)
-      if (backendLeadsResult.status === 'fulfilled' && backendLeadsResult.value) {
-        const backendLeads = backendLeadsResult.value;
-        console.log('📥 Fetched leads from backend:', backendLeads.length);
+    // Phase 3: Fetch Leads and other data in background
+    try {
+      console.log('📥 Fetching leads in background...');
+      const backendLeads = await api.getLeads();
 
+      if (backendLeads) {
         const processedLeads: Lead[] = backendLeads.map(backendLead => ({
           ...backendLead,
           assignedSalespersonId: backendLead.assignedSalespersonId ?? null,
@@ -154,18 +164,17 @@ const App: React.FC = () => {
           lastRemark: backendLead.lastRemark || backendLead.remarks || '',
           isRead: backendLead.isRead || false,
           missedVisitsCount: backendLead.missedVisitsCount || 0,
-          source: backendLead.source || 'website'
+          source: backendLead.source || 'website',
+          isBroker: backendLead.isBroker || 'No'
         }));
-
         setLeads(processedLeads);
       }
-
     } catch (error) {
-      console.error('Critical data load error:', error);
+      console.error('Background leads fetch error:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser]);
+  }, [leads.length]);
 
 
   useEffect(() => {
@@ -194,7 +203,8 @@ const App: React.FC = () => {
             lastRemark: backendLead.lastRemark || backendLead.remarks || '',
             isRead: backendLead.isRead || false,
             missedVisitsCount: backendLead.missedVisitsCount || 0,
-            source: backendLead.source || 'website'
+            source: backendLead.source || 'website',
+            isBroker: backendLead.isBroker || 'No'
           }));
 
           setLeads(processedLeads);
@@ -1245,7 +1255,7 @@ const App: React.FC = () => {
   };
 
   if (!currentUser) {
-    return <LoginPage users={users} onLogin={handleLogin} />;
+    return <LoginPage users={users} onLogin={handleLogin} serverWakingUp={serverWakingUp} />;
   }
 
   if (isLoading) {

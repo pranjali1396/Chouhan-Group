@@ -1,32 +1,32 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import type { User } from '../types';
-import { 
-    UsersIcon, 
-    BuildingLibraryIcon, 
-    TargetIcon, 
-    DatabaseIcon, 
+import {
+    UsersIcon,
+    BuildingLibraryIcon,
+    TargetIcon,
+    DatabaseIcon,
     ShieldCheckIcon,
     TrashIcon,
     PlusIcon
 } from './Icons';
 
 interface SettingsPageProps {
-  users: User[];
-  onCreateUser: (userData: { name: string; }) => void;
-  onDeleteUser: (userId: string) => void;
-  onResetDatabase: () => void;
-  currentUser: User;
-  onLogout: () => void;
-  onNavigate: (view: string) => void;
+    users: User[];
+    onCreateUser: (userData: { name: string; }) => void;
+    onDeleteUser: (userId: string) => void;
+    onResetDatabase: () => void;
+    currentUser: User;
+    onLogout: () => void;
+    onNavigate: (view: string) => void;
 }
 
 // --- Sub-Components for Settings Tabs ---
 
-const TeamSettings: React.FC<{ 
-    users: User[]; 
-    onCreateUser: (data: { name: string }) => void; 
-    onDeleteUser: (id: string) => void; 
+const TeamSettings: React.FC<{
+    users: User[];
+    onCreateUser: (data: { name: string }) => void;
+    onDeleteUser: (id: string) => void;
 }> = ({ users, onCreateUser, onDeleteUser }) => {
     const [name, setName] = useState('');
     const [error, setError] = useState('');
@@ -119,14 +119,14 @@ const ListManager: React.FC<{ title: string; subtitle: string; items: string[]; 
                 <h4 className="text-lg font-semibold text-base-content">{title}</h4>
                 <p className="text-sm text-muted-content">{subtitle}</p>
             </div>
-            
+
             <form onSubmit={handleAdd} className="flex gap-2 mb-4">
-                <input 
-                    type="text" 
-                    value={newItem} 
-                    onChange={(e) => setNewItem(e.target.value)} 
-                    className="input-style flex-1" 
-                    placeholder={placeholder} 
+                <input
+                    type="text"
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    className="input-style flex-1"
+                    placeholder={placeholder}
                 />
                 <button type="submit" className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-focus">
                     <PlusIcon className="w-5 h-5" />
@@ -151,8 +151,8 @@ const ListManager: React.FC<{ title: string; subtitle: string; items: string[]; 
 const MasterDataSettings: React.FC = () => {
     // Initialized with the updated project list
     const [projects, setProjects] = useState([
-        'Chouhan Park View', 
-        'Chouhan Business Park P1', 
+        'Chouhan Park View',
+        'Chouhan Business Park P1',
         'Chouhan Business Park P2',
         'Chouhan Business Center',
         'Chouhan Town',
@@ -175,16 +175,16 @@ const MasterDataSettings: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ListManager 
-                    title="Project List" 
+                <ListManager
+                    title="Project List"
                     subtitle="Active projects available for sale."
                     items={projects}
                     onAdd={(item) => setProjects([...projects, item])}
                     onDelete={(idx) => setProjects(projects.filter((_, i) => i !== idx))}
                     placeholder="Enter project name..."
                 />
-                <ListManager 
-                    title="Lead Sources" 
+                <ListManager
+                    title="Lead Sources"
                     subtitle="Channels where leads come from."
                     items={sources}
                     onAdd={(item) => setSources([...sources, item])}
@@ -202,7 +202,7 @@ const SalesTargetSettings: React.FC = () => {
 
     return (
         <div className="space-y-6">
-             <div className="border-b border-border-color pb-4">
+            <div className="border-b border-border-color pb-4">
                 <h3 className="text-lg font-bold text-base-content">Sales Preferences</h3>
                 <p className="text-sm text-muted-content">Set default targets and sales rules.</p>
             </div>
@@ -213,11 +213,11 @@ const SalesTargetSettings: React.FC = () => {
                     <div>
                         <label className="label-style">Booking Target (Per Salesperson)</label>
                         <div className="flex items-center mt-1">
-                            <input 
-                                type="number" 
-                                value={monthlyTarget} 
-                                onChange={(e) => setMonthlyTarget(parseInt(e.target.value) || 0)} 
-                                className="input-style w-full" 
+                            <input
+                                type="number"
+                                value={monthlyTarget}
+                                onChange={(e) => setMonthlyTarget(parseInt(e.target.value) || 0)}
+                                className="input-style w-full"
                             />
                             <span className="ml-2 text-sm text-muted-content">Units</span>
                         </div>
@@ -225,11 +225,11 @@ const SalesTargetSettings: React.FC = () => {
                     <div>
                         <label className="label-style">Site Visit Target (Per Salesperson)</label>
                         <div className="flex items-center mt-1">
-                            <input 
-                                type="number" 
-                                value={visitTarget} 
-                                onChange={(e) => setVisitTarget(parseInt(e.target.value) || 0)} 
-                                className="input-style w-full" 
+                            <input
+                                type="number"
+                                value={visitTarget}
+                                onChange={(e) => setVisitTarget(parseInt(e.target.value) || 0)}
+                                className="input-style w-full"
                             />
                             <span className="ml-2 text-sm text-muted-content">Visits</span>
                         </div>
@@ -245,6 +245,8 @@ const SalesTargetSettings: React.FC = () => {
         </div>
     );
 };
+
+
 
 const SystemSettings: React.FC<{ onReset: () => void }> = ({ onReset }) => {
     return (
@@ -277,7 +279,7 @@ const SystemSettings: React.FC<{ onReset: () => void }> = ({ onReset }) => {
                     </div>
                 </div>
             </div>
-            
+
             <div className="text-center text-xs text-muted-content pt-8">
                 <p>CRM Version 2.4.0 | Build 2025-10-27</p>
                 <p>&copy; 2025 Chouhan Housing Pvt Ltd.</p>
@@ -287,60 +289,60 @@ const SystemSettings: React.FC<{ onReset: () => void }> = ({ onReset }) => {
 };
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ users, onCreateUser, onDeleteUser, onResetDatabase, currentUser, onLogout, onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<'team' | 'master' | 'targets' | 'system'>('team');
+    const [activeTab, setActiveTab] = useState<'team' | 'master' | 'targets' | 'system'>('team');
 
-  const tabs = [
-      { id: 'team', label: 'Team', icon: <UsersIcon className="w-5 h-5" /> },
-      { id: 'master', label: 'Master Data', icon: <BuildingLibraryIcon className="w-5 h-5" /> },
-      { id: 'targets', label: 'Targets', icon: <TargetIcon className="w-5 h-5" /> },
-      { id: 'system', label: 'System', icon: <ShieldCheckIcon className="w-5 h-5" /> },
-  ];
+    const tabs = [
+        { id: 'team', label: 'Team', icon: <UsersIcon className="w-5 h-5" /> },
+        { id: 'master', label: 'Master Data', icon: <BuildingLibraryIcon className="w-5 h-5" /> },
+        { id: 'targets', label: 'Targets', icon: <TargetIcon className="w-5 h-5" /> },
+        { id: 'system', label: 'System', icon: <ShieldCheckIcon className="w-5 h-5" /> },
+    ];
 
-  return (
-    <div className="p-4 space-y-4 h-full flex flex-col">
-        <header className="flex justify-between items-center flex-shrink-0">
-            <h1 className="text-2xl font-bold text-base-content">Settings & Configuration</h1>
-        </header>
-        
-        <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-            {/* Sidebar Navigation for Settings */}
-            <div className="w-full lg:w-64 flex-shrink-0">
-                <div className="bg-white rounded-xl shadow-card border border-border-color overflow-hidden">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id as any)}
-                            className={`w-full flex items-center px-4 py-3 text-sm font-medium transition-colors border-l-4 ${
-                                activeTab === tab.id 
-                                ? 'bg-blue-50 text-primary border-primary' 
-                                : 'text-muted-content hover:bg-gray-50 border-transparent'
-                            }`}
-                        >
-                            <span className="mr-3">{tab.icon}</span>
-                            {tab.label}
-                        </button>
-                    ))}
+    return (
+        <div className="p-4 space-y-4 h-full flex flex-col">
+            <header className="flex justify-between items-center flex-shrink-0">
+                <h1 className="text-2xl font-bold text-base-content">Settings & Configuration</h1>
+            </header>
+
+            <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+                {/* Sidebar Navigation for Settings */}
+                <div className="w-full lg:w-64 flex-shrink-0">
+                    <div className="bg-white rounded-xl shadow-card border border-border-color overflow-hidden">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`w-full flex items-center px-4 py-3 text-sm font-medium transition-colors border-l-4 ${activeTab === tab.id
+                                    ? 'bg-blue-50 text-primary border-primary'
+                                    : 'text-muted-content hover:bg-gray-50 border-transparent'
+                                    }`}
+                            >
+                                <span className="mr-3">{tab.icon}</span>
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto">
+                    {activeTab === 'team' && (
+                        <TeamSettings users={users} onCreateUser={onCreateUser} onDeleteUser={onDeleteUser} />
+                    )}
+                    {activeTab === 'master' && (
+                        <MasterDataSettings />
+                    )}
+                    {activeTab === 'targets' && (
+                        <SalesTargetSettings />
+                    )}
+
+                    {activeTab === 'system' && (
+                        <SystemSettings onReset={onResetDatabase} />
+                    )}
                 </div>
             </div>
-
-            {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto">
-                {activeTab === 'team' && (
-                    <TeamSettings users={users} onCreateUser={onCreateUser} onDeleteUser={onDeleteUser} />
-                )}
-                {activeTab === 'master' && (
-                    <MasterDataSettings />
-                )}
-                {activeTab === 'targets' && (
-                    <SalesTargetSettings />
-                )}
-                {activeTab === 'system' && (
-                    <SystemSettings onReset={onResetDatabase} />
-                )}
-            </div>
         </div>
-    </div>
-  );
+    );
 };
 
 export default SettingsPage;

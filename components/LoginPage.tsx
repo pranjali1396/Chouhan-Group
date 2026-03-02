@@ -5,9 +5,10 @@ import type { User } from '../types';
 interface LoginPageProps {
   users: User[];
   onLogin: (user: User) => void;
+  serverWakingUp?: boolean;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ users, onLogin }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ users, onLogin, serverWakingUp }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -61,11 +62,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ users, onLogin }) => {
                   setSelectedUserId(e.target.value);
                   setError('');
                 }}
-                className="input-style appearance-none bg-white text-slate-900 border-slate-300 focus:border-blue-600"
+                className={`input-style appearance-none bg-white text-slate-900 border-slate-300 focus:border-blue-600 ${users.length === 0 ? 'animate-pulse' : ''}`}
                 style={{ backgroundImage: 'none' }}
               >
                 <option value="" disabled>
-                  {users.length === 0 ? 'Loading profiles...' : '-- Select your profile --'}
+                  {users.length === 0 ? 'Connecting to server...' : '-- Select your profile --'}
                 </option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
@@ -77,6 +78,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ users, onLogin }) => {
                 <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
               </div>
             </div>
+            {serverWakingUp && users.length === 0 && (
+              <div className="mt-2 flex items-center gap-2 text-blue-600 animate-fade-in">
+                <div className="w-3 h-3 border-2 border-t-transparent border-blue-600 rounded-full animate-spin"></div>
+                <span className="text-[10px] font-bold uppercase tracking-wider">Server is waking up... Please wait.</span>
+              </div>
+            )}
           </div>
           <div>
             <label htmlFor="password-input" className="block text-xs font-bold text-slate-700 mb-1.5 tracking-wide uppercase">
@@ -101,9 +108,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ users, onLogin }) => {
         <div>
           <button
             onClick={handleLogin}
-            className="w-full flex justify-center items-center py-3.5 px-6 border border-transparent rounded-xl shadow-lg shadow-blue-600/30 text-sm font-black text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform active:scale-[0.98] uppercase tracking-widest"
+            disabled={users.length === 0}
+            className={`w-full flex justify-center items-center py-3.5 px-6 border border-transparent rounded-xl shadow-lg text-sm font-black text-white transition-all duration-200 transform uppercase tracking-widest ${users.length === 0
+                ? 'bg-slate-300 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30 active:scale-[0.98]'
+              }`}
           >
-            Login
+            {users.length === 0 ? 'Connecting...' : 'Login'}
           </button>
         </div>
       </div>
