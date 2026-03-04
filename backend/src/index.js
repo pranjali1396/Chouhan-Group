@@ -11,6 +11,7 @@ import express from 'express';
 import cors from 'cors';
 import { randomUUID } from 'crypto';
 import mysqlPool from './mysqlClient.js';
+import axios from 'axios'; // Add axios for self-pinging
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -61,7 +62,10 @@ app.get('/health', (req, res) => {
 
 // In-memory storage for fallback (temporary)
 let receivedLeads = [];
-let notifications = [];
+let backendNotifications = []; // Renamed to avoid confusion with local notifications
+
+// In-memory presence tracking (UserID -> { lastSeen: timestamp, state: 'online'|'away' })
+const UserPresence = new Map();
 
 // Get all received leads (for testing and frontend)
 app.get('/api/v1/webhooks/leads', (req, res) => {
@@ -70,6 +74,146 @@ app.get('/api/v1/webhooks/leads', (req, res) => {
         count: receivedLeads.length,
         leads: receivedLeads
     });
+});
+
+// Webhook endpoint to receive leads from websites
+app.post('/api/v1/webhooks/lead', async (req, res) => {
+    try {
+        const leadData = req.body || {};
+
+        const activeUsersCount = Array.from(UserPresence.values()).filter(p =>
+            p.state === 'online' && (Date.now() - p.lastSeen < 180000)
+        ).length;
+
+        console.log('\n📥 ===== WEBHOOK LEAD RECEIVED =====');
+        console.log(`👤 Active Users: ${activeUsersCount}`);
+        console.log('📦 Payload:', JSON.stringify(leadData, null, 2));
+
+        // Basic validation
+        if (!leadData.customerName && !leadData.mobile) {
+            console.warn('⚠️ Webhook received with missing required fields: customerName or mobile');
+            return res.status(400).json({
+                success: false,
+                error: 'customerName or mobile is required'
+            });
+        }
+
+        const now = new Date();
+        const leadId = randomUUID();
+        const source = leadData.source || 'website';
+        const project = leadData.interestedProject || 'Chouhan Group';
+
+        // Prepare MySQL lead object
+        const newLead = {
+            id: leadId,
+            customer_name: leadData.customerName || 'Website Lead',
+            mobile: leadData.mobile || null,
+            email: leadData.email || null,
+            status: 'New Lead',
+            assigned_salesperson_id: null,
+            lead_date: toMySQLDate(now),
+            last_activity_date: toMySQLDate(now),
+            month: now.toLocaleString('default', { month: 'long', year: 'numeric' }),
+            mode_of_enquiry: 'Website',
+            occupation: leadData.occupation || null,
+            interested_project: project,
+            interested_unit: leadData.interestedUnit || null,
+            temperature: null,
+            visit_status: 'No',
+            visit_date: null,
+            next_follow_up_date: null,
+            last_remark: leadData.remarks || `Inquiry from ${source}`,
+            booking_status: null,
+            is_read: false,
+            missed_visits_count: 0,
+            labels: JSON.stringify([]),
+            budget: leadData.budget || null,
+            purpose: leadData.purpose || null,
+            city: leadData.city || null,
+            platform: leadData.platform || null,
+            source_website: source,
+            is_broker: leadData.isBroker || 'No'
+        };
+
+        console.log('💾 Saving webhook lead to MySQL...');
+
+        // Save to MySQL
+        await mysqlPool.query(
+            `INSERT INTO leads (
+                id, customer_name, mobile, email, status, assigned_salesperson_id,
+                lead_date, last_activity_date, month, mode_of_enquiry, occupation,
+                interested_project, interested_unit, temperature, visit_status,
+                visit_date, next_follow_up_date, last_remark, booking_status,
+                is_read, missed_visits_count, labels, budget, purpose, city,
+                platform, source_website, is_broker
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                newLead.id, newLead.customer_name, newLead.mobile, newLead.email,
+                newLead.status, newLead.assigned_salesperson_id, newLead.lead_date,
+                newLead.last_activity_date, newLead.month, newLead.mode_of_enquiry,
+                newLead.occupation, newLead.interested_project, newLead.interested_unit,
+                newLead.temperature, newLead.visit_status, newLead.visit_date,
+                newLead.next_follow_up_date, newLead.last_remark, newLead.booking_status,
+                newLead.is_read, newLead.missed_visits_count, newLead.labels,
+                newLead.budget, newLead.purpose, newLead.city, newLead.platform,
+                newLead.source_website, newLead.is_broker
+            ]
+        );
+
+        console.log('✅ Webhook lead saved successfully:', leadId);
+
+        // Also add to in-memory list for instant reactivity if frontend is polling
+        receivedLeads.unshift({
+            ...leadData,
+            id: leadId,
+            receivedAt: now.toISOString(),
+            status: 'New Lead'
+        });
+
+        // Create notification for Admin users
+        try {
+            const notificationId = randomUUID();
+            await mysqlPool.query(
+                `INSERT INTO notifications (id, type, message, lead_id, lead_data, target_role, target_user_id, created_at, is_read)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    notificationId,
+                    'new_lead',
+                    `New lead from ${newLead.customer_name}`,
+                    leadId,
+                    JSON.stringify({
+                        customerName: newLead.customer_name,
+                        mobile: newLead.mobile || '',
+                        email: newLead.email || '',
+                        interestedProject: newLead.interested_project,
+                        status: 'New Lead',
+                        source: source
+                    }),
+                    'Admin',
+                    null,
+                    toMySQLDate(now),
+                    false
+                ]
+            );
+            console.log('🔔 Admin notification created for new lead');
+        } catch (notifError) {
+            console.error('❌ Failed to create notification for webhook lead:', notifError);
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: 'Lead captured successfully',
+            leadId: leadId
+        });
+
+    } catch (error) {
+        console.error('❌ CRITICAL ERROR in POST /api/v1/webhooks/lead:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
 });
 
 // Helper to format MySQL lead row to Frontend camelCase object
@@ -121,6 +265,361 @@ const toMySQLDate = (dateVal) => {
         return null;
     }
 };
+
+// --- ATTENDANCE ENDPOINTS ---
+
+// PRESENCE: Heartbeat (Automates Clock-In/Out based on Login/Presence)
+app.post('/api/v1/attendance/presence', async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.json({ success: true });
+
+    const now = Date.now();
+    const today = new Date().toISOString().split('T')[0];
+    const timestamp = toMySQLDate(now);
+
+    // 1. Store presence for the provided ID
+    UserPresence.set(userId, { lastSeen: now, state: 'online' });
+
+    try {
+        // Find user MySQL ID if local ID is provided
+        let dbUserId = userId;
+        const [users] = await mysqlPool.query('SELECT id FROM users WHERE local_id = ? OR id = ?', [userId, userId]);
+        if (users.length > 0) {
+            dbUserId = users[0].id;
+            UserPresence.set(dbUserId, { lastSeen: now, state: 'online' });
+        }
+
+        // Check if record exists for today
+        const [records] = await mysqlPool.query(
+            'SELECT * FROM attendance WHERE user_id = ? AND date = ?',
+            [dbUserId, today]
+        );
+
+        if (records.length === 0) {
+            // First presence of the day -> AUTO CLOCK IN
+            const attendanceId = randomUUID();
+            await mysqlPool.query(
+                `INSERT INTO attendance (id, user_id, date, clock_in, status, location_in)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [attendanceId, dbUserId, today, timestamp, 'Present', 'Automatic (Login)']
+            );
+            console.log(`✨ Auto Clock-In for ${userId}`);
+        }
+    } catch (err) {
+        console.error('❌ Auto-Attendance error:', err);
+    }
+
+    res.json({ success: true });
+});
+
+// PRESENCE: Away (Tab Close or Inactivity)
+app.post('/api/v1/attendance/away', (req, res) => {
+    const { userId } = req.body;
+    if (userId) {
+        UserPresence.set(userId, { lastSeen: Date.now(), state: 'away' });
+        console.log(`🌙 User ${userId} marked as Away`);
+    }
+    res.json({ success: true });
+});
+
+// PRESENCE: Logout
+app.post('/api/v1/attendance/logout', async (req, res) => {
+    const { userId, clockOut } = req.body;
+    console.log(`👤 Logout presence for ${userId} (clockOut: ${!!clockOut})`);
+
+    if (userId) {
+        UserPresence.delete(userId);
+
+        if (clockOut) {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const timestamp = toMySQLDate(new Date());
+
+                // Find DB user ID
+                let dbUserId = userId;
+                const [users] = await mysqlPool.query('SELECT id FROM users WHERE local_id = ? OR id = ?', [userId, userId]);
+                if (users.length > 0) dbUserId = users[0].id;
+
+                // Update existing record for today if not clocked out
+                await mysqlPool.query(
+                    'UPDATE attendance SET clock_out = ? WHERE user_id = ? AND date = ? AND clock_out IS NULL',
+                    [timestamp, dbUserId, today]
+                );
+                console.log(`✅ Auto-clocked out ${userId} on logout`);
+            } catch (err) {
+                console.error('❌ Auto-clock-out failed during logout:', err);
+            }
+        }
+    }
+    res.json({ success: true });
+});
+
+// GET ATTENDANCE STATUS (for individual user)
+app.get('/api/v1/attendance/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+    try {
+        // Resolve user ID
+        let dbUserId = userId;
+        const [users] = await mysqlPool.query('SELECT id FROM users WHERE local_id = ? OR id = ?', [userId, userId]);
+        if (users.length > 0) dbUserId = users[0].id;
+
+        // Fetch today's record
+        const [todayRecords] = await mysqlPool.query(
+            'SELECT * FROM attendance WHERE user_id = ? AND date = ?',
+            [dbUserId, today]
+        );
+
+        // Fetch monthly count
+        const [monthlyRecords] = await mysqlPool.query(
+            'SELECT COUNT(DISTINCT date) as count FROM attendance WHERE user_id = ? AND date >= ? AND date <= ?',
+            [dbUserId, startOfMonth, today]
+        );
+
+        // Fetch last 7 days history
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const [history] = await mysqlPool.query(
+            'SELECT * FROM attendance WHERE user_id = ? AND date >= ? ORDER BY date DESC',
+            [dbUserId, sevenDaysAgo.toISOString().split('T')[0]]
+        );
+
+        let status = 'NotClockedIn';
+        let clockInTime = null;
+        let clockOutTime = null;
+        let location = null;
+        let hoursToday = 0;
+
+        if (todayRecords.length > 0) {
+            const record = todayRecords[0];
+            status = record.clock_out ? 'ClockedOut' : 'ClockedIn';
+            clockInTime = record.clock_in;
+            clockOutTime = record.clock_out;
+            location = record.location_in;
+
+            const start = new Date(record.clock_in).getTime();
+            const end = record.clock_out ? new Date(record.clock_out).getTime() : new Date().getTime();
+            hoursToday = end - start;
+        }
+
+        // Presence Status
+        const presenceData = UserPresence.get(userId) || UserPresence.get(dbUserId);
+        const lastSeenTime = presenceData?.lastSeen || 0;
+        let pStatus = 'Offline';
+        if ((Date.now() - lastSeenTime) < 180000) pStatus = 'Online';
+        else if (presenceData?.state === 'away' && (Date.now() - lastSeenTime) < 600000) pStatus = 'Away';
+
+        res.json({
+            success: true,
+            attendance: {
+                status,
+                clockInTime,
+                clockOutTime,
+                location,
+                presenceStatus: pStatus
+            },
+            summary: {
+                hoursToday,
+                daysThisMonth: monthlyRecords[0]?.count || 0
+            },
+            history: history || []
+        });
+    } catch (error) {
+        console.error('❌ Error fetching attendance status:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch attendance status' });
+    }
+});
+
+// CLOCK IN
+app.post('/api/v1/attendance/clock-in', async (req, res) => {
+    const { userId, location, timestamp } = req.body;
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+        let dbUserId = userId;
+        const [users] = await mysqlPool.query('SELECT id FROM users WHERE local_id = ? OR id = ?', [userId, userId]);
+        if (users.length > 0) dbUserId = users[0].id;
+
+        const mysqlTimestamp = toMySQLDate(timestamp || new Date());
+        const attendanceId = randomUUID();
+
+        // Use INSERT ON DUPLICATE KEY UPDATE or check existence
+        const [existing] = await mysqlPool.query('SELECT id FROM attendance WHERE user_id = ? AND date = ?', [dbUserId, today]);
+
+        if (existing.length > 0) {
+            await mysqlPool.query(
+                'UPDATE attendance SET clock_in = ?, location_in = ?, status = ? WHERE id = ?',
+                [mysqlTimestamp, location, 'Present', existing[0].id]
+            );
+        } else {
+            await mysqlPool.query(
+                `INSERT INTO attendance (id, user_id, date, clock_in, location_in, status)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [attendanceId, dbUserId, today, mysqlTimestamp, location, 'Present']
+            );
+        }
+
+        res.json({ success: true, message: 'Clocked in successfully' });
+    } catch (error) {
+        console.error('❌ Clock-in error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// CLOCK OUT
+app.post('/api/v1/attendance/clock-out', async (req, res) => {
+    const { userId, timestamp } = req.body;
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+        let dbUserId = userId;
+        const [users] = await mysqlPool.query('SELECT id FROM users WHERE local_id = ? OR id = ?', [userId, userId]);
+        if (users.length > 0) dbUserId = users[0].id;
+
+        const mysqlTimestamp = toMySQLDate(timestamp || new Date());
+
+        await mysqlPool.query(
+            'UPDATE attendance SET clock_out = ? WHERE user_id = ? AND date = ? AND clock_out IS NULL',
+            [mysqlTimestamp, dbUserId, today]
+        );
+
+        res.json({ success: true, message: 'Clocked out successfully' });
+    } catch (error) {
+        console.error('❌ Clock-out error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ATTENDANCE DASHBOARD
+app.get('/api/v1/attendance/dashboard', async (req, res) => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+
+    // Week range
+    const dayOfWeek = now.getDay();
+    const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(new Date().setDate(diffToMonday));
+    monday.setHours(0, 0, 0, 0);
+    const startOfWeek = monday.toISOString().split('T')[0];
+
+    try {
+        const [users] = await mysqlPool.query('SELECT id, name, role, local_id FROM users');
+        const [attendance] = await mysqlPool.query(
+            'SELECT * FROM attendance WHERE date >= ? AND date <= ?',
+            [startOfWeek, today]
+        );
+
+        const dashboardData = users.map(user => {
+            const todayRecord = attendance.find(a => a.user_id === user.id && a.date === today);
+            const weeklyRecords = attendance.filter(a => a.user_id === user.id);
+
+            let totalWeeklyMs = 0;
+            const weeklyBreakdown = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+
+            weeklyRecords.forEach(r => {
+                const start = new Date(r.clock_in).getTime();
+                const end = r.clock_out ? new Date(r.clock_out).getTime() : (r.date === today ? new Date().getTime() : start);
+                const diff = end - start;
+                totalWeeklyMs += diff;
+                const dateObj = new Date(r.date);
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                if (weeklyBreakdown[dayName] !== undefined) {
+                    weeklyBreakdown[dayName] += Math.round(diff / 3600000 * 10) / 10;
+                }
+            });
+
+            const weeklyHrs = Math.floor(totalWeeklyMs / 3600000);
+            const weeklyMins = Math.floor((totalWeeklyMs % 3600000) / 60000);
+
+            // Presence
+            const presenceData = UserPresence.get(user.id) || UserPresence.get(user.local_id);
+            const lastSeenTime = presenceData?.lastSeen || 0;
+            const isPresenceActive = (Date.now() - lastSeenTime) < 180000;
+
+            let status = 'Offline';
+            let duration = '0h 0m';
+            if (todayRecord) {
+                if (todayRecord.clock_out) {
+                    status = 'Offline';
+                } else if (isPresenceActive) {
+                    status = 'Online';
+                } else {
+                    status = 'Away';
+                }
+                const start = new Date(todayRecord.clock_in).getTime();
+                const end = todayRecord.clock_out ? new Date(todayRecord.clock_out).getTime() : new Date().getTime();
+                const diffMs = end - start;
+                duration = `${Math.floor(diffMs / 3600000)}h ${Math.floor((diffMs % 3600000) / 60000)}m`;
+            } else if (isPresenceActive) {
+                status = 'Browsing';
+            }
+
+            return {
+                id: user.id,
+                name: user.name,
+                role: user.role,
+                status,
+                clockIn: todayRecord?.clock_in || null,
+                location: todayRecord?.location_in || null,
+                duration,
+                weeklyHours: `${weeklyHrs}h ${weeklyMins}m`,
+                weeklyBreakdown
+            };
+        });
+
+        res.json({ success: true, data: dashboardData });
+    } catch (error) {
+        console.error('❌ Dashboard error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// EXPORT ATTENDANCE
+app.get('/api/v1/attendance/export', async (req, res) => {
+    const { month } = req.query; // YYYY-MM
+    try {
+        const start = `${month}-01`;
+        const end = `${month}-31`;
+
+        const [users] = await mysqlPool.query('SELECT id, name, role FROM users');
+        const userMap = {};
+        users.forEach(u => userMap[u.id] = u);
+
+        const [records] = await mysqlPool.query(
+            'SELECT * FROM attendance WHERE date >= ? AND date <= ? ORDER BY date DESC',
+            [start, end]
+        );
+
+        const header = ['Date', 'Name', 'Role', 'Status', 'Clock In', 'Clock Out', 'Location', 'Duration (Mins)'];
+        const csvRows = [header.join(',')];
+
+        records.forEach(row => {
+            const user = userMap[row.user_id] || { name: 'Unknown', role: '-' };
+            const inTime = row.clock_in ? new Date(row.clock_in).toLocaleTimeString() : '-';
+            const outTime = row.clock_out ? new Date(row.clock_out).toLocaleTimeString() : '-';
+            const loc = row.location_in ? `"${row.location_in.replace(/"/g, '""')}"` : '-';
+
+            let dur = 0;
+            if (row.clock_in) {
+                const start = new Date(row.clock_in).getTime();
+                const end = row.clock_out ? new Date(row.clock_out).getTime() : (row.date === new Date().toISOString().split('T')[0] ? new Date().getTime() : start);
+                dur = Math.round((end - start) / 60000);
+            }
+
+            csvRows.push([row.date, user.name, user.role, row.status || 'Present', inTime, outTime, loc, dur].join(','));
+        });
+
+        res.header('Content-Type', 'text/csv');
+        res.attachment(`attendance-${month}.csv`);
+        res.send(csvRows.join('\n'));
+    } catch (error) {
+        console.error('❌ Export failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 app.get('/api/v1/leads', async (req, res) => {
     try {
         const [rows] = await mysqlPool.query(
@@ -667,6 +1166,64 @@ app.get('/api/v1/users', async (req, res) => {
     }
 });
 
+// Create user endpoint
+app.post('/api/v1/users', async (req, res) => {
+    try {
+        const { name, role, avatarUrl, id: localId } = req.body;
+
+        if (!name || !role) {
+            return res.status(400).json({ success: false, error: 'Name and role are required' });
+        }
+
+        const id = randomUUID();
+        await mysqlPool.query(
+            'INSERT INTO users (id, name, role, avatar_url, local_id) VALUES (?, ?, ?, ?, ?)',
+            [id, name, role, avatarUrl || null, localId || null]
+        );
+
+        const newUser = { id, name, role, avatarUrl: avatarUrl || '' };
+        console.log(`👤 New user created: ${name} (${role})`);
+
+        res.status(201).json({ success: true, user: newUser });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(500).json({ success: false, error: 'Failed to create user', message: error.message });
+    }
+});
+
+// Delete user endpoint
+app.delete('/api/v1/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { adminId } = req.query;
+
+        if (!adminId) {
+            return res.status(400).json({ success: false, error: 'Admin ID required for reassignment' });
+        }
+
+        // 1. Reassign leads to admin
+        await mysqlPool.query(
+            'UPDATE leads SET assigned_salesperson_id = ? WHERE assigned_salesperson_id = ?',
+            [adminId, id]
+        );
+
+        // 2. Reassign notifications to admin (if they were targeted at this user)
+        await mysqlPool.query(
+            'UPDATE notifications SET target_user_id = ? WHERE target_user_id = ?',
+            [adminId, id]
+        );
+
+        // 3. Delete user
+        await mysqlPool.query('DELETE FROM users WHERE id = ?', [id]);
+
+        console.log(`🗑️ User ${id} deleted and leads reassigned to ${adminId}`);
+        res.json({ success: true, message: 'User deleted and leads reassigned' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete user', message: error.message });
+    }
+});
+
 // Sync users endpoint - creates/updates users in MySQL
 app.post('/api/v1/users/sync', async (req, res) => {
     try {
@@ -764,5 +1321,18 @@ app.listen(PORT, () => {
     console.log(`🚀 Webhook Endpoint: http://localhost:${PORT}/api/v1/webhooks/lead`);
     console.log(`🚀 View Received Leads: http://localhost:${PORT}/api/v1/webhooks/leads`);
     console.log('🚀 ========================================\n');
+
+    // Self-ping mechanism to prevent Render sleep (Ping every 10 mins)
+    const selfUrl = process.env.SELF_URL || `http://localhost:${PORT}`;
+    setInterval(async () => {
+        try {
+            if (selfUrl.includes('localhost') && process.env.NODE_ENV === 'production') return;
+            console.log(`📡 Self-pinging to keep alive: ${selfUrl}/health`);
+            await axios.get(`${selfUrl}/health`);
+        } catch (e) {
+            console.warn('📡 Self-ping failed (expected if local):', e.message);
+        }
+    }, 600000); // 10 minutes
+
     console.log('📝 Waiting for leads from websites...\n');
 });
