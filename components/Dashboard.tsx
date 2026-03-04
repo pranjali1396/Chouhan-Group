@@ -98,8 +98,9 @@ const SalesFunnelView: React.FC<{ leads: Lead[] }> = ({ leads }) => {
     ];
 
     const leadCounts = useMemo(() => {
+        const safeLeads = Array.isArray(leads) ? leads : [];
         return funnelStages.map(stage => {
-            const count = leads.filter(l => l.status === stage.name).length;
+            const count = safeLeads.filter(l => l && l.status === stage.name).length;
             return { ...stage, count };
         });
     }, [leads]);
@@ -127,11 +128,14 @@ const LabelwiseView: React.FC<{ leads: Lead[] }> = ({ leads }) => {
     const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1'];
 
     const labelData = useMemo(() => {
+        const safeLeads = Array.isArray(leads) ? leads : [];
         const counts: Record<string, number> = {};
-        leads.forEach(lead => {
-            (lead.labels || []).forEach(label => {
-                counts[label] = (counts[label] || 0) + 1;
-            });
+        safeLeads.forEach(lead => {
+            if (lead && lead.labels) {
+                (lead.labels || []).forEach(label => {
+                    counts[label] = (counts[label] || 0) + 1;
+                });
+            }
         });
 
         return Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
@@ -186,8 +190,9 @@ const LeadsDashboardTab: React.FC<{ leads: Lead[] }> = ({ leads }) => {
     const [activeSubTab, setActiveSubTab] = useState('Sales funnels');
 
     const { total, contacted, newLeads } = useMemo(() => {
-        const total = leads.length;
-        const contacted = leads.filter(l => l.status !== LeadStatus.New).length;
+        const safeLeads = Array.isArray(leads) ? leads : [];
+        const total = safeLeads.length;
+        const contacted = safeLeads.filter(l => l && l.status !== LeadStatus.New).length;
         const newLeads = total - contacted;
         return { total, contacted, newLeads };
     }, [leads]);

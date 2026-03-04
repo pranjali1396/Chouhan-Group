@@ -113,8 +113,9 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
   };
 
   // Calculate generic team stats for metrics (Admin View)
-  const presentCount = dashboardData.filter(u => u.clockIn).length;
-  const onlineCount = dashboardData.filter(u => u.status === 'Online').length;
+  const safeDashboardData = Array.isArray(dashboardData) ? dashboardData : [];
+  const presentCount = safeDashboardData.filter(u => u && u.clockIn).length;
+  const onlineCount = safeDashboardData.filter(u => u && u.status === 'Online').length;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -197,8 +198,8 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {dashboardData.length > 0 ? (
-                    dashboardData.map((user: any) => (
+                  {safeDashboardData.length > 0 ? (
+                    safeDashboardData.map((user: any) => (
                       <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex flex-col">
@@ -269,7 +270,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser, users }) =
               </div>
 
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-                {history.length > 0 ? (
+                {(Array.isArray(history) && history.length > 0) ? (
                   history.map((record) => {
                     const isToday = record.date === new Date().toISOString().split('T')[0];
                     const start = new Date(record.clock_in);

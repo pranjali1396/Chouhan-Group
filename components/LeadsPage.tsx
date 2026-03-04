@@ -121,7 +121,9 @@ const PipelineCard: React.FC<{ lead: Lead, user?: User, onClick: () => void }> =
 };
 
 const PipelineBoard: React.FC<{ leads: Lead[], users: User[], onOpenModal: (l: Lead) => void }> = ({ leads, users, onOpenModal }) => {
-    const userMap = new Map(users.map(u => [u.id, u]));
+    const safeUsers = Array.isArray(users) ? users : [];
+    const safeLeads = Array.isArray(leads) ? leads : [];
+    const userMap = new Map(safeUsers.map(u => [u.id, u]));
     const [expandedColumns, setExpandedColumns] = React.useState<Set<string>>(new Set(['new', 'qualified']));
 
     const columns = [
@@ -216,7 +218,7 @@ const PipelineBoard: React.FC<{ leads: Lead[], users: User[], onOpenModal: (l: L
             {/* Mobile View - Premium Vertical Stacked Accordion */}
             <div className="md:hidden space-y-4 pb-6 px-1">
                 {columns.map(col => {
-                    const colLeads = leads.filter(l => col.statuses.includes(l.status));
+                    const colLeads = safeLeads.filter(l => l && col.statuses.includes(l.status));
                     const isExpanded = expandedColumns.has(col.id);
                     return (
                         <div key={col.id} className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden transition-all duration-300">
@@ -273,7 +275,7 @@ const PipelineBoard: React.FC<{ leads: Lead[], users: User[], onOpenModal: (l: L
             {/* Desktop View - Horizontal Kanban */}
             <div className="hidden md:flex gap-5 overflow-x-auto pb-6 h-[calc(100vh-220px)] min-h-[500px] p-2">
                 {columns.map(col => {
-                    const colLeads = leads.filter(l => col.statuses.includes(l.status));
+                    const colLeads = safeLeads.filter(l => l && col.statuses.includes(l.status));
                     const totalValue = colLeads.reduce((acc, l) => {
                         const amount = parseInt(l.budget?.replace(/[^\d]/g, '') || '0');
                         return acc + amount;
@@ -622,31 +624,35 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
     }, [targetLeadId, leads, handleOpenModal, onClearTargetLead]);
 
     const uniqueMonths = useMemo(() => {
-        const months = new Set(leads.map(l => l.month).filter(Boolean));
+        const safeLeads = Array.isArray(leads) ? leads : [];
+        const months = new Set(safeLeads.map(l => l.month).filter(Boolean));
         return Array.from(months).sort((a, b) => new Date(b as string).getTime() - new Date(a as string).getTime());
     }, [leads]);
 
     const uniqueSources = useMemo(() => {
-        const sources = new Set(leads.map(l => l.source).filter(Boolean));
+        const safeLeads = Array.isArray(leads) ? leads : [];
+        const sources = new Set(safeLeads.map(l => l.source).filter(Boolean));
         return Array.from(sources).sort();
     }, [leads]);
 
     const filteredLeads = useMemo(() => {
+        const safeLeads = Array.isArray(leads) ? leads : [];
+        const safeUsers = Array.isArray(users) ? users : [];
         // Debug: Log incoming leads for "New Leads" tab
         if (activeTab === 'new' && currentUser.role !== 'Admin') {
             console.log('🔍 [NEW LEADS TAB] Filtering leads:', {
-                totalLeads: leads.length,
+                totalLeads: safeLeads.length,
                 currentUserId: currentUser.id,
-                assignedLeads: leads.filter(l => l.assignedSalespersonId === currentUser.id).length,
-                newLeads: leads.filter(l => l.status === LeadStatus.New).length,
-                assignedAndNew: leads.filter(l => l.assignedSalespersonId === currentUser.id && l.status === LeadStatus.New).length
+                assignedLeads: safeLeads.filter(l => l.assignedSalespersonId === currentUser.id).length,
+                newLeads: safeLeads.filter(l => l.status === LeadStatus.New).length,
+                assignedAndNew: safeLeads.filter(l => l.assignedSalespersonId === currentUser.id && l.status === LeadStatus.New).length
             });
         }
 
         // 1. Filter by View Mode (Leads vs Opps vs Clients)
         // BUT: For "assigned" and "unassigned" tabs, show ALL statuses
         // AND: For Admin in 'all' tab (All Enquiries), show ALL statuses/leads
-        const adminUser = users.find(u => u.role === 'Admin');
+        const adminUser = safeUsers.find(u => u.role === 'Admin');
         const isAdmin = currentUser.role === 'Admin';
         const isAssignmentTab = activeTab === 'assigned' || activeTab === 'unassigned';
         const isAdminAllTab = isAdmin && activeTab === 'all' && viewMode === 'leads';
@@ -654,11 +660,11 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
         let filtered: Lead[];
         if (isAssignmentTab || isAdminAllTab) {
             // For assignment tabs or Admin All Enquiries, show all leads regardless of status
-            filtered = [...leads];
+            filtered = [...safeLeads];
         } else {
             // For other tabs, filter by viewMode statuses
             const viewModeStatuses = getStatusesForViewMode(viewMode);
-            filtered = leads.filter(l => viewModeStatuses.includes(l.status));
+            filtered = safeLeads.filter(l => viewModeStatuses.includes(l.status));
         }
 
         // 2. Filter by Active Tab (applies tab-specific status filters)
@@ -695,7 +701,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ viewMode = 'leads', leads, users,
                     return false;
                 }
                 // Check if the assigned ID exists in users (valid user)
-                const assignedUser = users.find(u => u.id === assignedId);
+                const assignedUser = safeUsers.find(u => u.id === assignedId);
                 return assignedUser !== undefined && assignedUser.role !== 'Admin';
             });
         }

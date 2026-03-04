@@ -147,6 +147,20 @@ class ApiService {
     }
   }
 
+  async createUser(userData: any) {
+    const response = await this.request<{ success: boolean; user: any }>('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+    return response.user;
+  }
+
+  async deleteUser(userId: string, adminId: string) {
+    return this.request<{ success: boolean; message: string }>(`/users/${userId}?adminId=${adminId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async syncUsers(users: any[]) {
     const response = await this.request<{ success: boolean; synced: number; users: any[] }>('/users/sync', {
       method: 'POST',

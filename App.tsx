@@ -126,12 +126,18 @@ const App: React.FC = () => {
     }
     setSearchTerm('');
 
-    // Phase 2: Wake up the server and get Users (Critical for Login)
+    // Phase 2: Wake up the server and Fetch Users & Leads in parallel
     const wakeupTimer = setTimeout(() => setServerWakingUp(true), 3000);
 
     try {
-      console.log('📡 Fetching users from backend...');
-      const backendUsers = await api.getUsers();
+      console.log('📡 Fetching initial data from backend...');
+
+      // Fetch both Users and Leads in parallel for better performance
+      const [backendUsers, backendLeads] = await Promise.all([
+        api.getUsers().catch(e => { console.warn('Users fetch failed', e); return null; }),
+        api.getLeads().catch(e => { console.warn('Leads fetch failed', e); return null; })
+      ]);
+
       clearTimeout(wakeupTimer);
       setServerWakingUp(false);
 
@@ -140,19 +146,6 @@ const App: React.FC = () => {
         console.log('✅ Users synced with backend');
         await db.saveAllData({ users: backendUsers });
       }
-
-      // Stop global loading as soon as we have users (allows Login screen to be interactive)
-      setIsLoading(false);
-    } catch (e) {
-      console.warn('Backend users fetch failed, sticking with local data', e);
-      clearTimeout(wakeupTimer);
-      setServerWakingUp(false);
-    }
-
-    // Phase 3: Fetch Leads and other data in background
-    try {
-      console.log('📥 Fetching leads in background...');
-      const backendLeads = await api.getLeads();
 
       if (backendLeads) {
         const processedLeads: Lead[] = backendLeads.map(backendLead => ({
@@ -171,15 +164,18 @@ const App: React.FC = () => {
           isBroker: backendLead.isBroker || 'No'
         }));
         setLeads(processedLeads);
+        console.log('✅ Leads synced with backend');
       }
-    } catch (error) {
-      console.error('Background leads fetch error:', error);
-    } finally {
-      // Final fallback to ensure loading is off
+
+      // Stop global loading
+      setIsLoading(false);
+    } catch (e) {
+      console.warn('Initial backend fetch failed, sticking with local data', e);
+      clearTimeout(wakeupTimer);
+      setServerWakingUp(false);
       setIsLoading(false);
     }
   }, []);
-
 
   useEffect(() => {
     loadData();
@@ -218,8 +214,9 @@ const App: React.FC = () => {
       }
     };
 
-    // Only set up refresh if it hasn't run recently? 
-    // Actually, making it efficient is enough.
+    // Call immediately on login, then every 60s
+    refreshLeads();
+
     const intervalId = setInterval(refreshLeads, 60000); // Check every 60s instead of 30s to save battery/bandwidth
     return () => clearInterval(intervalId);
   }, [currentUser]);
@@ -544,7 +541,7 @@ const App: React.FC = () => {
             l.id === updatedLead.id ? originalLeadForRollback : l
           )
         );
-  
+   
         // Revert local DB update
         await db.updateLead(originalLeadForRollback);
       }
@@ -895,19 +892,44 @@ const App: React.FC = () => {
   }, []);
 
   const handleCreateUser = useCallback(async (userData: { name: string }) => {
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: userData.name,
-      role: 'Salesperson',
-      avatarUrl: `https://i.pravatar.cc/40?u=${userData.name}`
-    };
-    await db.addUser(newUser);
-    setUsers(prev => [...prev, newUser]);
+    try {
+      const newUserRequest = {
+        name: userData.name,
+        role: 'Salesperson',
+        avatarUrl: `https://i.pravatar.cc/40?u=${userData.name}`
+      };
+
+      const newUser = await api.createUser(newUserRequest);
+
+      if (newUser) {
+        await db.addUser(newUser);
+        setUsers(prev => [...prev, newUser]);
+        console.log('✅ User created and saved to backend');
+      }
+    } catch (error) {
+      console.error('❌ Failed to create user in backend:', error);
+      // Fallback to local only for demo if needed, but here we want backend success
+      const localUser: User = {
+        id: `user-${Date.now()}`,
+        name: userData.name,
+        role: 'Salesperson',
+        avatarUrl: `https://i.pravatar.cc/40?u=${userData.name}`
+      };
+      await db.addUser(localUser);
+      setUsers(prev => [...prev, localUser]);
+    }
   }, []);
 
   const handleDeleteUser = useCallback(async (userId: string) => {
     const admin = users.find(u => u.role === 'Admin');
     if (!admin) return;
+
+    try {
+      await api.deleteUser(userId, admin.id);
+      console.log('✅ User deleted in backend');
+    } catch (error) {
+      console.error('❌ Failed to delete user in backend:', error);
+    }
 
     await db.deleteUser(userId, admin.id);
 

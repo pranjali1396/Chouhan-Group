@@ -14,51 +14,52 @@ const COLORS = ['#fbe5bf', '#f9d79f', '#f7c980', '#f5bb60', '#f3ad40', '#f19f21'
 const SalesFunnelChart: React.FC<SalesFunnelChartProps> = ({ leads }) => {
   const chartData = useMemo(() => {
     const pipelineOrder: LeadStatus[] = [
-        LeadStatus.New,
-        LeadStatus.Contacted,
-        // Fix: Corrected enum member access from 'VisitScheduled' to 'SiteVisitScheduled'.
-        LeadStatus.SiteVisitScheduled,
-        // Fix: Corrected enum member access from 'VisitDone' to 'SiteVisitDone'.
-        LeadStatus.SiteVisitDone,
-        LeadStatus.Negotiation,
-        LeadStatus.Booked
+      LeadStatus.New,
+      LeadStatus.Contacted,
+      // Fix: Corrected enum member access from 'VisitScheduled' to 'SiteVisitScheduled'.
+      LeadStatus.SiteVisitScheduled,
+      // Fix: Corrected enum member access from 'VisitDone' to 'SiteVisitDone'.
+      LeadStatus.SiteVisitDone,
+      LeadStatus.Negotiation,
+      LeadStatus.Booked
     ];
 
     const counts = pipelineOrder.reduce((acc, status) => {
-        acc[status] = 0;
-        return acc;
+      acc[status] = 0;
+      return acc;
     }, {} as Record<string, number>);
 
-    leads.forEach(lead => {
-        if (counts.hasOwnProperty(lead.status)) {
-            counts[lead.status]++;
-        }
+    const safeLeads = Array.isArray(leads) ? leads : [];
+    safeLeads.forEach(lead => {
+      if (counts.hasOwnProperty(lead.status)) {
+        counts[lead.status]++;
+      }
     });
 
     const funnelData: { name: string; value: number; }[] = [];
     let cumulativeValue = 0;
-    
+
     // Iterate backwards to accumulate values
     for (let i = pipelineOrder.length - 1; i >= 0; i--) {
-        const status = pipelineOrder[i];
-        cumulativeValue += counts[status] || 0;
-        funnelData.unshift({ // Add to the beginning of the array to maintain order
-            name: status,
-            value: cumulativeValue,
-        });
+      const status = pipelineOrder[i];
+      cumulativeValue += counts[status] || 0;
+      funnelData.unshift({ // Add to the beginning of the array to maintain order
+        name: status,
+        value: cumulativeValue,
+      });
     }
-    
+
     // Filter out stages with 0 leads to not clutter the chart
     return funnelData.filter(d => d.value > 0);
   }, [leads]);
 
   if (!chartData || chartData.length === 0) {
-      return (
-        <div>
-          <h3 className="text-lg font-semibold text-text-primary mb-4">Sales Funnel</h3>
-          <p className="text-text-secondary text-center py-10">Not enough data to display funnel.</p>
-        </div>
-      );
+    return (
+      <div>
+        <h3 className="text-lg font-semibold text-text-primary mb-4">Sales Funnel</h3>
+        <p className="text-text-secondary text-center py-10">Not enough data to display funnel.</p>
+      </div>
+    );
   }
 
   return (
