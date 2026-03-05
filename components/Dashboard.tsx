@@ -453,26 +453,28 @@ const SalesDashboardTab: React.FC<{ leads: Lead[] }> = ({ leads }) => {
 const DetailedMetricsGrid: React.FC<{ leads: Lead[], tasks: Task[], activities: Activity[], onNavigate: (view: string) => void }> = ({ leads, tasks, activities, onNavigate }) => {
     const stats = useMemo(() => {
         const now = new Date();
+        const safeLeads = Array.isArray(leads) ? leads : [];
+        const safeTasks = Array.isArray(tasks) ? tasks : [];
+        const safeActivities = Array.isArray(activities) ? activities : [];
 
         // Row 1 - Lead & Task Metrics
-        const newLeads = leads.filter(l => l.status === LeadStatus.New).length;
-        const unassignedLeads = leads.filter(l => !l.assignedSalespersonId || l.assignedSalespersonId === '').length;
-        const taskSchedule = tasks.filter(t => !t.isCompleted).length;
-        const overdueTasks = tasks.filter(t => !t.isCompleted && new Date(t.dueDate) < now).length;
+        const newLeads = safeLeads.filter(l => l && l.status === LeadStatus.New).length;
+        const unassignedLeads = safeLeads.filter(l => l && (!l.assignedSalespersonId || l.assignedSalespersonId === '')).length;
+        const taskSchedule = safeTasks.filter(t => t && !t.isCompleted).length;
+        const overdueTasks = safeTasks.filter(t => t && !t.isCompleted && new Date(t.dueDate) < now).length;
 
         // Row 2 - Opportunities & Site Visits
-        const newOpportunities = leads.filter(l => l.status === LeadStatus.Qualified).length;
+        const newOpportunities = safeLeads.filter(l => l && l.status === LeadStatus.Qualified).length;
         // Site visits done: ONLY site visit done status
-        const siteVisitsDone = leads.filter(l => l.status === LeadStatus.SiteVisitDone).length;
+        const siteVisitsDone = safeLeads.filter(l => l && l.status === LeadStatus.SiteVisitDone).length;
         // Site visits scheduled: ONLY scheduled/planned
-        const siteVisitsScheduled = leads.filter(l =>
-            l.status === LeadStatus.SiteVisitScheduled ||
-            l.visitStatus === 'Planned'
+        const siteVisitsScheduled = safeLeads.filter(l =>
+            l && (l.status === LeadStatus.SiteVisitScheduled ||
+                l.visitStatus === 'Planned')
         ).length;
 
         // Row 3 - Call Metrics
-        const callActivities = activities.filter(a => a.type === 'Call');
-        const totalCalls = callActivities.length;
+        const totalCalls = safeActivities.filter(a => a && a.type === 'Call').length;
 
         return {
             newLeads, unassignedLeads, taskSchedule, overdueTasks,
