@@ -111,23 +111,40 @@ const App: React.FC = () => {
   const loadData = useCallback(async () => {
     // Phase 1: Initialize from local cache immediately
     const localData = await db.getAllData();
+
     if (localData.users.length > 0) {
       setUsers(localData.users);
-      console.log('⚡ Using cached users for instant login list');
+      console.log('⚡ Using cached users');
+    }
+
+    if (localData.leads && localData.leads.length > 0) {
+      setLeads(localData.leads);
+      console.log(`⚡ Loaded ${localData.leads.length} leads from cache`);
     }
 
     if (localData.activities) setActivities(localData.activities);
     if (localData.tasks) setTasks(localData.tasks);
     if (localData.inventory) setInventory(localData.inventory);
 
-    // Initial load state logic
-    if (leads.length === 0) {
+    // Initial load state logic: Only show global spinner if we have NO leads at all (local or state)
+    // We use localData.leads directly to avoid stale closure issues with 'leads' state
+    const hasAnyLeads = (localData.leads && localData.leads.length > 0);
+
+    if (!hasAnyLeads) {
       setIsLoading(true);
+      console.log('⏳ No local data, showing loader while fetching...');
+    } else {
+      setIsLoading(false); // Already have data, don't show full-screen spinner
+      console.log('🚀 Showing cached data while background refresh starts');
     }
+
     setSearchTerm('');
 
     // Phase 2: Wake up the server and Fetch Users & Leads in parallel
-    const wakeupTimer = setTimeout(() => setServerWakingUp(true), 3000);
+    const wakeupTimer = setTimeout(() => {
+      // Only show waking up status if we are still fetching
+      setServerWakingUp(true);
+    }, 3000);
 
     try {
       console.log('📡 Fetching initial data from backend...');
@@ -165,9 +182,11 @@ const App: React.FC = () => {
         }));
         setLeads(processedLeads);
         console.log('✅ Leads synced with backend');
+        // Update cache with the freshest data
+        await db.saveAllData({ leads: processedLeads });
       }
 
-      // Stop global loading
+      // Final stop for global loading (only relevant if it was previously loading)
       setIsLoading(false);
     } catch (e) {
       console.warn('Initial backend fetch failed, sticking with local data', e);

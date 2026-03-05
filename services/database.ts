@@ -34,10 +34,36 @@ class DatabaseService {
         if (typeof window === 'undefined') return schema;
 
         try {
+            // Load Users
             const cachedUsers = localStorage.getItem('crm_cached_users');
             if (cachedUsers) {
                 schema.users = JSON.parse(cachedUsers);
                 console.log('📦 Loaded users from localStorage cache');
+            }
+
+            // Load Leads
+            const cachedLeads = localStorage.getItem('crm_cached_leads');
+            if (cachedLeads) {
+                schema.leads = JSON.parse(cachedLeads);
+                console.log('📦 Loaded leads from localStorage cache');
+            }
+
+            // Load Activities
+            const cachedActivities = localStorage.getItem('crm_cached_activities');
+            if (cachedActivities) {
+                schema.activities = JSON.parse(cachedActivities);
+            }
+
+            // Load Tasks
+            const cachedTasks = localStorage.getItem('crm_cached_tasks');
+            if (cachedTasks) {
+                schema.tasks = JSON.parse(cachedTasks);
+            }
+
+            // Load Inventory (if any saved)
+            const cachedInventory = localStorage.getItem('crm_cached_inventory');
+            if (cachedInventory) {
+                schema.inventory = JSON.parse(cachedInventory);
             }
         } catch (e) {
             console.warn('Failed to load from storage', e);
@@ -92,11 +118,24 @@ class DatabaseService {
             if (newId) return { ...target, salespersonId: newId };
             return target;
         });
-        console.log('✅ Updated all user ID references in memory');
+
+        this.save();
+        console.log('✅ Updated all user ID references in memory and storage');
     }
 
     private save() {
-        // We do NOT save to localStorage anymore
+        if (typeof window === 'undefined') return;
+        try {
+            // Use separate keys to avoid total block failures and hit limits individually if needed
+            localStorage.setItem('crm_cached_leads', JSON.stringify(this.data.leads));
+            localStorage.setItem('crm_cached_activities', JSON.stringify(this.data.activities));
+            localStorage.setItem('crm_cached_tasks', JSON.stringify(this.data.tasks));
+            localStorage.setItem('crm_cached_inventory', JSON.stringify(this.data.inventory));
+            localStorage.setItem('crm_cached_users', JSON.stringify(this.data.users));
+            console.debug('💾 Data persisted to localStorage');
+        } catch (e) {
+            console.warn('Failed to save data to localStorage', e);
+        }
     }
 
     // --- Public API ---
@@ -107,14 +146,13 @@ class DatabaseService {
 
     async saveAllData(data: Partial<DatabaseSchema>) {
         if (data.leads) this.data.leads = data.leads;
-        if (data.users) {
-            this.data.users = data.users;
-            this.saveUsers();
-        }
+        if (data.users) this.data.users = data.users;
         if (data.activities) this.data.activities = data.activities;
         if (data.inventory) this.data.inventory = data.inventory;
         if (data.tasks) this.data.tasks = data.tasks;
         if (data.salesTargets) this.data.salesTargets = data.salesTargets;
+
+        this.save(); // Persist everything
     }
 
     async getLeads() {
@@ -123,6 +161,7 @@ class DatabaseService {
 
     async addLead(lead: Lead) {
         this.data.leads.unshift(lead);
+        this.save();
         return lead;
     }
 
@@ -130,6 +169,7 @@ class DatabaseService {
         const index = this.data.leads.findIndex(l => l.id === updatedLead.id);
         if (index !== -1) {
             this.data.leads[index] = updatedLead;
+            this.save();
         }
         return updatedLead;
     }
@@ -141,11 +181,13 @@ class DatabaseService {
             }
             return l;
         });
+        this.save();
     }
 
     async deleteLead(leadId: string) {
         this.data.leads = this.data.leads.filter(l => l.id !== leadId);
         this.data.activities = this.data.activities.filter(a => a.leadId !== leadId);
+        this.save();
     }
 
     async addActivity(activity: Activity) {
@@ -155,11 +197,13 @@ class DatabaseService {
             this.data.leads[leadIdx].lastActivityDate = activity.date;
             this.data.leads[leadIdx].lastRemark = activity.remarks;
         }
+        this.save();
         return activity;
     }
 
     async deleteActivity(activityId: string) {
         this.data.activities = this.data.activities.filter(a => a.id !== activityId);
+        this.save();
     }
 
     async getInventory() {
@@ -173,6 +217,7 @@ class DatabaseService {
                 unit.id === unitId ? { ...unit, status: 'Booked' } : unit
             )
         }));
+        this.save();
     }
 
     async updateUnit(projectId: string, updatedUnit: Unit) {
@@ -184,6 +229,7 @@ class DatabaseService {
                 units[unitIndex] = updatedUnit;
             }
         }
+        this.save();
         return [...this.data.inventory];
     }
 
@@ -196,6 +242,7 @@ class DatabaseService {
                 this.data.inventory[projectIndex].availableUnits += 1;
             }
         }
+        this.save();
         return [...this.data.inventory];
     }
 
@@ -211,17 +258,20 @@ class DatabaseService {
                 project.availableUnits -= 1;
             }
         }
+        this.save();
         return [...this.data.inventory];
     }
 
     async addTask(task: Task) {
         this.data.tasks.unshift(task);
+        this.save();
     }
 
     async toggleTask(taskId: string) {
         const task = this.data.tasks.find(t => t.id === taskId);
         if (task) {
             task.isCompleted = !task.isCompleted;
+            this.save();
         }
     }
 
@@ -229,37 +279,41 @@ class DatabaseService {
         const index = this.data.tasks.findIndex(t => t.id === updatedTask.id);
         if (index !== -1) {
             this.data.tasks[index] = updatedTask;
+            this.save();
         }
         return updatedTask;
     }
 
     async deleteTask(taskId: string) {
         this.data.tasks = this.data.tasks.filter(t => t.id !== taskId);
+        this.save();
     }
 
     async markTaskReminded(taskId: string) {
         const task = this.data.tasks.find(t => t.id === taskId);
         if (task) {
             task.hasReminded = true;
+            this.save();
         }
         return [...this.data.tasks];
     }
 
     async addUser(user: User) {
         this.data.users.push(user);
-        this.saveUsers();
+        this.save();
     }
 
     async deleteUser(userId: string, reassignToId: string) {
         this.data.users = this.data.users.filter(u => u.id !== userId);
-        this.saveUsers();
         this.data.leads = this.data.leads.map(l =>
             l.assignedSalespersonId === userId ? { ...l, assignedSalespersonId: reassignToId } : l
         );
+        this.save();
     }
 
     async resetDatabase() {
         this.data = getEmptySchema();
+        this.save();
         return this.getAllData();
     }
 }
